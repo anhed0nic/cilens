@@ -3,19 +3,19 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum CILensError {
     #[error("API request failed: {0}")]
-    ApiError(String),
+    Api(String),
 
     #[error("Invalid configuration: {0}")]
-    ConfigError(String),
+    Config(String),
 
     #[error("Network error: {0}")]
-    NetworkError(#[from] reqwest::Error),
+    Network(#[from] reqwest::Error),
 
     #[error("JSON serialization error: {0}")]
-    JsonError(#[from] serde_json::Error),
+    Json(#[from] serde_json::Error),
 
     #[error("IO error: {0}")]
-    IoError(#[from] std::io::Error),
+    Io(#[from] std::io::Error),
 }
 
 pub type Result<T> = std::result::Result<T, CILensError>;

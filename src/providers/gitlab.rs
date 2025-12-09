@@ -25,9 +25,7 @@ impl GitLabProvider {
         let client = Client::builder()
             .user_agent("CILens/0.1.0")
             .build()
-            .map_err(|e| {
-                CILensError::ConfigError(format!("Failed to create HTTP client: {}", e))
-            })?;
+            .map_err(|e| CILensError::Config(format!("Failed to create HTTP client: {}", e)))?;
 
         let project_url = format!(
             "{}/api/v4/projects/{}/pipelines",
@@ -86,7 +84,7 @@ impl Pipeline for GitLabProvider {
             if !response.status().is_success() {
                 let status = response.status();
                 let body = response.text().await.unwrap_or_default();
-                return Err(CILensError::ApiError(format!(
+                return Err(CILensError::Api(format!(
                     "Failed to fetch pipelines: {} - {}",
                     status, body
                 )));
