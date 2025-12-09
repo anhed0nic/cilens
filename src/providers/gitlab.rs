@@ -84,9 +84,13 @@ impl Pipeline for GitLabProvider {
         }
 
         let mut pipelines: Vec<GitLabPipeline> = response.json().await?;
+
+        pipelines
+            .retain(|p| p.status != "running" && p.status != "pending" && p.status != "created");
+
         pipelines.truncate(limit);
 
-        info!("Fetched {} pipelines", pipelines.len());
+        info!("Fetched {} completed pipelines", pipelines.len());
         Ok(pipelines)
     }
 
