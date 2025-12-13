@@ -1,6 +1,7 @@
+mod auth;
 mod cli;
 mod error;
-mod models;
+mod insights;
 mod providers;
 
 use anyhow::Result;
