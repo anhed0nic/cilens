@@ -82,7 +82,7 @@ impl GitLabClient {
 
         Ok(pipelines
             .into_iter()
-            .filter(|p| p.is_completed())
+            .filter(GitLabPipelineDto::is_completed)
             .map(|p| p.id.to_string())
             .collect())
     }

@@ -22,8 +22,8 @@ pub struct GitLabProvider {
 }
 
 impl GitLabProvider {
-    pub fn new(base_url: String, project_id: String, token: Option<Token>) -> Result<Self> {
-        let client = GitLabClient::new(&base_url, token)?;
+    pub fn new(base_url: &str, project_id: String, token: Option<Token>) -> Result<Self> {
+        let client = GitLabClient::new(base_url, token)?;
 
         Ok(Self { client, project_id })
     }
@@ -37,7 +37,7 @@ impl GitLabProvider {
         let mut page = 1;
         let per_page = 100;
 
-        info!("Fetching up to {} pipelines...", limit);
+        info!("Fetching up to {limit} pipelines...");
 
         loop {
             let pipeline_ids = self
@@ -60,8 +60,7 @@ impl GitLabProvider {
             all_pipelines.extend(pipelines.into_iter().take(remaining));
 
             info!(
-                "Page {}: fetched {} pipelines (total: {})",
-                page,
+                "Page {page}: fetched {} pipelines (total: {})",
                 all_pipelines.len().min(per_page as usize),
                 all_pipelines.len()
             );
@@ -82,17 +81,19 @@ impl GitLabProvider {
             .collect())
     }
 
-    fn calculate_summary(&self, pipelines: &[GitLabPipeline]) -> PipelineSummary {
+    fn calculate_summary(pipelines: &[GitLabPipeline]) -> PipelineSummary {
         let total_pipelines = pipelines.len();
         let successful_pipelines = pipelines.iter().filter(|p| p.status == "success").count();
         let failed_pipelines = pipelines.iter().filter(|p| p.status == "failed").count();
 
+        #[allow(clippy::cast_precision_loss)]
         let pipeline_success_rate = if total_pipelines > 0 {
             (successful_pipelines as f64 / total_pipelines as f64) * 100.0
         } else {
             0.0
         };
 
+        #[allow(clippy::cast_precision_loss)]
         let average_pipeline_duration = pipelines.iter().filter_map(|p| p.duration).sum::<f64>()
             / total_pipelines.max(1) as f64;
 
@@ -107,23 +108,23 @@ impl GitLabProvider {
 
     pub async fn collect_insights(
         &self,
-        project: &str,
+        project_id: &str,
         limit: usize,
         branch: Option<&str>,
     ) -> Result<CIInsights> {
-        info!("Starting insights collection for project: {}", project);
+        info!("Starting insights collection for project: {project_id}");
 
         let pipelines = self.fetch_pipelines(limit, branch).await?;
 
         if pipelines.is_empty() {
-            warn!("No pipelines found for project: {}", project);
+            warn!("No pipelines found for project: {project_id}");
         }
 
-        let pipeline_summary = self.calculate_summary(&pipelines);
+        let pipeline_summary = Self::calculate_summary(&pipelines);
 
         Ok(CIInsights {
             provider: "GitLab".to_string(),
-            project: project.to_string(),
+            project: project_id.to_string(),
             collected_at: Utc::now(),
             pipelines_analyzed: pipelines.len(),
             pipeline_summary,

@@ -23,19 +23,19 @@ pub struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     Gitlab {
-        #[arg(short, long, env = "GITLAB_TOKEN")]
+        #[arg(long, env = "GITLAB_TOKEN")]
         token: Option<String>,
 
-        #[arg(short, long, default_value = "https://gitlab.com")]
-        url: String,
+        #[arg(long, default_value = "https://gitlab.com")]
+        base_url: String,
 
-        #[arg(short = 'P', long)]
-        project: String,
+        #[arg(long)]
+        project_id: String,
 
-        #[arg(short, long, default_value_t = 20)]
+        #[arg(long, default_value_t = 20)]
         limit: usize,
 
-        #[arg(short, long)]
+        #[arg(long)]
         branch: Option<String>,
     },
 }
@@ -43,19 +43,19 @@ enum Commands {
 impl Cli {
     async fn execute_gitlab(
         &self,
-        token: &Option<String>,
-        url: &str,
-        project: &str,
+        token: Option<&String>,
+        base_url: &str,
+        project_id: &str,
         limit: usize,
         branch: Option<&str>,
     ) -> Result<()> {
-        info!("Collecting GitLab insights for project: {}", project);
+        info!("Collecting GitLab insights for project: {project_id}");
 
-        let token = token.as_ref().map(|t| Token::from(t.as_str()));
+        let token = token.map(|t| Token::from(t.as_str()));
 
-        let provider = GitLabProvider::new(url.to_owned(), project.to_owned(), token)?;
+        let provider = GitLabProvider::new(base_url, project_id.to_owned(), token)?;
 
-        let insights = provider.collect_insights(project, limit, branch).await?;
+        let insights = provider.collect_insights(project_id, limit, branch).await?;
 
         let json_output = if self.pretty {
             serde_json::to_string_pretty(&insights)?
@@ -67,7 +67,7 @@ impl Cli {
             std::fs::write(output_path, json_output)?;
             info!("Insights written to: {}", output_path.display());
         } else {
-            println!("{}", json_output);
+            println!("{json_output}");
         }
 
         Ok(())
@@ -77,13 +77,19 @@ impl Cli {
         match &self.command {
             Commands::Gitlab {
                 token,
-                url,
-                project,
+                base_url,
+                project_id,
                 limit,
                 branch,
             } => {
-                self.execute_gitlab(token, url, project, *limit, branch.as_deref())
-                    .await
+                self.execute_gitlab(
+                    token.as_ref(),
+                    base_url,
+                    project_id,
+                    *limit,
+                    branch.as_deref(),
+                )
+                .await
             }
         }
     }
