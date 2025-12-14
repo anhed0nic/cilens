@@ -7,7 +7,6 @@ use super::client::GitLabClient;
 use crate::auth::Token;
 use crate::error::Result;
 use crate::insights::{CIInsights, PipelineSummary};
-use crate::providers::gitlab::pipelines::{GitLabPipelineDto, GitLabPipelineListDto};
 
 const CONCURRENCY: usize = 10;
 
@@ -40,6 +39,7 @@ impl GitLabProvider {
 
         info!("Fetching up to {limit} pipelines...");
 
+        #[allow(clippy::redundant_closure_for_method_calls)]
         while all_pipelines.len() < limit {
             // Fetch a page of pipeline list and pre-filter invalid ones
             let pipelines_list = self
@@ -47,7 +47,7 @@ impl GitLabProvider {
                 .fetch_pipeline_list_page(&self.project_id, page, per_page, branch)
                 .await?
                 .into_iter()
-                .filter(GitLabPipelineListDto::is_valid)
+                .filter(|p| p.is_valid())
                 .collect::<Vec<_>>();
 
             if pipelines_list.is_empty() {
@@ -56,13 +56,14 @@ impl GitLabProvider {
             }
 
             // Fetch full pipeline data concurrently
+            #[allow(clippy::redundant_closure_for_method_calls)]
             let pipelines: Vec<GitLabPipeline> = stream::iter(pipelines_list)
                 .map(|p| async move { self.client.fetch_pipeline(&self.project_id, p.id).await })
                 .buffer_unordered(CONCURRENCY)
                 .try_collect::<Vec<_>>()
                 .await?
                 .into_iter()
-                .filter(GitLabPipelineDto::is_valid)
+                .filter(|p| p.is_valid())
                 .take(limit.saturating_sub(all_pipelines.len())) // enforce remaining limit
                 .map(|p| GitLabPipeline {
                     status: p.status,

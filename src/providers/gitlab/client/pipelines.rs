@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use url::Url;
 
-use super::client::GitLabClient;
+use super::core::GitLabClient;
 use crate::error::{CILensError, Result};
 
 #[derive(Debug, Deserialize)]
