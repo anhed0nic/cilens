@@ -3,10 +3,11 @@ use futures::{stream, StreamExt, TryStreamExt};
 use log::{info, warn};
 use serde::Deserialize;
 
+use super::client::GitLabClient;
 use crate::auth::Token;
 use crate::error::Result;
 use crate::insights::{CIInsights, PipelineSummary};
-use crate::providers::gitlab::client::{GitLabClient, GitLabPipelineDto, GitLabPipelineListDto};
+use crate::providers::gitlab::pipelines::{GitLabPipelineDto, GitLabPipelineListDto};
 
 const CONCURRENCY: usize = 10;
 

@@ -4,7 +4,7 @@ use log::info;
 use std::path::PathBuf;
 
 use crate::auth::Token;
-use crate::providers::gitlab::provider::GitLabProvider;
+use crate::providers::GitLabProvider;
 
 #[derive(Parser)]
 #[command(name = "cilens")]

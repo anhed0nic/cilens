@@ -1,1 +1,3 @@
-pub mod gitlab;
+mod gitlab;
+
+pub use gitlab::GitLabProvider;

@@ -1,2 +1,5 @@
 mod client;
-pub mod provider;
+mod pipelines;
+mod provider;
+
+pub use provider::GitLabProvider;
