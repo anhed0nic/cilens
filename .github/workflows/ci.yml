@@ -1,4 +1,4 @@
-name: Lint
+name: CI
 
 on:
   push:
@@ -36,3 +36,15 @@ jobs:
 
       - name: Check formatting
         run: cargo fmt -- --check
+
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run Tests
+        run: cargo test --all-targets --all-features -- --nocapture
