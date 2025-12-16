@@ -4,9 +4,8 @@ use log::{info, warn};
 use super::core::GitLabProvider;
 use crate::error::Result;
 use crate::insights::{CIInsights, PipelineSummary};
-use crate::providers::gitlab::client::graphql::fetch_pipelines;
+use crate::providers::gitlab::client::pipelines::fetch_pipelines;
 
-/// Represents a GitLab pipeline with its jobs
 #[derive(Debug)]
 pub struct GitLabPipeline {
     pub status: String,
@@ -15,7 +14,6 @@ pub struct GitLabPipeline {
     pub jobs: Vec<GitLabJob>,
 }
 
-/// Represents a job within a GitLab pipeline
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct GitLabJob {
@@ -26,17 +24,6 @@ pub struct GitLabJob {
 }
 
 impl GitLabProvider {
-    /// Fetch pipelines using GraphQL API
-    ///
-    /// This method fetches pipelines with their jobs and dependencies in a single query,
-    /// filtering for valid pipelines (success/failed status with duration data).
-    ///
-    /// # Arguments
-    /// * `limit` - Maximum number of pipelines to fetch
-    /// * `branch` - Optional branch name to filter pipelines
-    ///
-    /// # Returns
-    /// * `Result<Vec<GitLabPipeline>>` - Vector of valid pipelines or an error
     pub async fn fetch_pipelines(
         &self,
         limit: usize,
@@ -44,24 +31,20 @@ impl GitLabProvider {
     ) -> Result<Vec<GitLabPipeline>> {
         info!("Fetching up to {limit} pipelines...");
 
-        // Fetch pipeline nodes using GraphQL
         let pipeline_nodes = self
             .client
             .fetch_pipelines_graphql(&self.project_path, limit, branch)
             .await?;
 
-        // Transform and filter pipeline nodes
         let pipelines: Vec<GitLabPipeline> = pipeline_nodes
             .into_iter()
             .filter_map(|node| {
-                // Only include pipelines with success or failed status and valid duration
                 if (node.status == fetch_pipelines::PipelineStatusEnum::SUCCESS
                     || node.status == fetch_pipelines::PipelineStatusEnum::FAILED)
                     && node.duration.is_some()
                 {
                     let duration = node.duration.unwrap() as usize;
 
-                    // Transform jobs if available
                     let jobs = node
                         .jobs
                         .map(|job_conn| {
@@ -69,11 +52,9 @@ impl GitLabProvider {
                                 .nodes
                                 .into_iter()
                                 .flatten()
-                                .flatten() // job_node is Option<T>
+                                .flatten()
                                 .filter_map(|job_node| {
-                                    // Only include jobs with valid duration
                                     job_node.duration.map(|dur| {
-                                        // Extract job dependency names
                                         let needs = job_node
                                             .needs
                                             .map(|needs_conn| {
@@ -115,7 +96,6 @@ impl GitLabProvider {
         Ok(pipelines)
     }
 
-    /// Calculate summary statistics from a collection of pipelines
     fn calculate_summary(pipelines: &[GitLabPipeline]) -> PipelineSummary {
         let total_pipelines = pipelines.len();
         let successful_pipelines = pipelines.iter().filter(|p| p.status == "success").count();
@@ -141,14 +121,6 @@ impl GitLabProvider {
         }
     }
 
-    /// Collect CI/CD insights for the project
-    ///
-    /// # Arguments
-    /// * `limit` - Maximum number of pipelines to analyze
-    /// * `branch` - Optional branch name to filter pipelines
-    ///
-    /// # Returns
-    /// * `Result<CIInsights>` - Aggregated insights or an error
     pub async fn collect_insights(
         &self,
         limit: usize,
