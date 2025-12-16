@@ -123,15 +123,19 @@ impl GitLabProvider {
         };
 
         #[allow(clippy::cast_precision_loss)]
-        let average_pipeline_duration = pipelines.iter().map(|p| p.duration as f64).sum::<f64>()
-            / total_pipelines.max(1) as f64;
+        let average_successful_pipeline_duration_seconds = pipelines
+            .iter()
+            .filter(|p| p.status == "success")
+            .map(|p| p.duration as f64)
+            .sum::<f64>()
+            / successful_pipelines.max(1) as f64;
 
         PipelineSummary {
             total_pipelines,
             successful_pipelines,
             failed_pipelines,
             pipeline_success_rate,
-            average_pipeline_duration,
+            average_successful_pipeline_duration_seconds,
         }
     }
 
