@@ -27,73 +27,87 @@ impl GitLabProvider {
     pub async fn fetch_pipelines(
         &self,
         limit: usize,
-        branch: Option<&str>,
+        ref_: Option<&str>,
     ) -> Result<Vec<GitLabPipeline>> {
         info!("Fetching up to {limit} pipelines...");
 
         let pipeline_nodes = self
             .client
-            .fetch_pipelines_graphql(&self.project_path, limit, branch)
+            .fetch_pipelines_graphql(&self.project_path, limit, ref_)
             .await?;
 
         let pipelines: Vec<GitLabPipeline> = pipeline_nodes
             .into_iter()
-            .filter_map(|node| {
-                if (node.status == fetch_pipelines::PipelineStatusEnum::SUCCESS
-                    || node.status == fetch_pipelines::PipelineStatusEnum::FAILED)
-                    && node.duration.is_some()
-                {
-                    let duration = node.duration.unwrap() as usize;
-
-                    let jobs = node
-                        .jobs
-                        .map(|job_conn| {
-                            job_conn
-                                .nodes
-                                .into_iter()
-                                .flatten()
-                                .flatten()
-                                .filter_map(|job_node| {
-                                    job_node.duration.map(|dur| {
-                                        let needs = job_node
-                                            .needs
-                                            .map(|needs_conn| {
-                                                needs_conn
-                                                    .nodes
-                                                    .into_iter()
-                                                    .flatten()
-                                                    .flatten()
-                                                    .filter_map(|need| need.name)
-                                                    .collect()
-                                            })
-                                            .unwrap_or_default();
-
-                                        GitLabJob {
-                                            name: job_node.name.unwrap_or_default(),
-                                            status: format!("{:?}", job_node.status),
-                                            duration: dur as f64,
-                                            needs,
-                                        }
-                                    })
-                                })
-                                .collect()
-                        })
-                        .unwrap_or_default();
-
-                    Some(GitLabPipeline {
-                        status: format!("{:?}", node.status).to_lowercase(),
-                        duration,
-                        jobs,
-                    })
-                } else {
-                    None
-                }
-            })
+            .filter_map(Self::transform_pipeline_node)
             .collect();
 
-        info!("Fetched {} valid pipelines", pipelines.len());
+        info!("Processed {} pipelines", pipelines.len());
 
         Ok(pipelines)
+    }
+
+    fn is_valid_pipeline(node: &fetch_pipelines::FetchPipelinesProjectPipelinesNodes) -> bool {
+        (node.status == fetch_pipelines::PipelineStatusEnum::SUCCESS
+            || node.status == fetch_pipelines::PipelineStatusEnum::FAILED)
+            && node.duration.is_some()
+    }
+
+    fn transform_pipeline_node(
+        node: fetch_pipelines::FetchPipelinesProjectPipelinesNodes,
+    ) -> Option<GitLabPipeline> {
+        if !Self::is_valid_pipeline(&node) {
+            return None;
+        }
+
+        let duration = node.duration.unwrap() as usize;
+        let jobs = Self::transform_jobs(node.jobs);
+
+        Some(GitLabPipeline {
+            status: format!("{:?}", node.status).to_lowercase(),
+            duration,
+            jobs,
+        })
+    }
+
+    fn transform_jobs(
+        job_conn: Option<fetch_pipelines::FetchPipelinesProjectPipelinesNodesJobs>,
+    ) -> Vec<GitLabJob> {
+        job_conn
+            .map(|conn| {
+                conn.nodes
+                    .into_iter()
+                    .flatten()
+                    .flatten()
+                    .filter_map(Self::transform_job_node)
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    fn transform_job_node(
+        job_node: fetch_pipelines::FetchPipelinesProjectPipelinesNodesJobsNodes,
+    ) -> Option<GitLabJob> {
+        job_node.duration.map(|dur| GitLabJob {
+            name: job_node.name.unwrap_or_default(),
+            status: format!("{:?}", job_node.status),
+            duration: dur as f64,
+            needs: Self::transform_job_needs(job_node.needs),
+        })
+    }
+
+    fn transform_job_needs(
+        needs_conn: Option<fetch_pipelines::FetchPipelinesProjectPipelinesNodesJobsNodesNeeds>,
+    ) -> Vec<String> {
+        needs_conn
+            .map(|conn| {
+                conn.nodes
+                    .into_iter()
+                    .flatten()
+                    .flatten()
+                    .filter_map(|need| need.name)
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 
     fn calculate_summary(pipelines: &[GitLabPipeline]) -> PipelineSummary {
@@ -121,17 +135,13 @@ impl GitLabProvider {
         }
     }
 
-    pub async fn collect_insights(
-        &self,
-        limit: usize,
-        branch: Option<&str>,
-    ) -> Result<CIInsights> {
+    pub async fn collect_insights(&self, limit: usize, ref_: Option<&str>) -> Result<CIInsights> {
         info!(
             "Starting insights collection for project: {}",
             self.project_path
         );
 
-        let pipelines = self.fetch_pipelines(limit, branch).await?;
+        let pipelines = self.fetch_pipelines(limit, ref_).await?;
 
         if pipelines.is_empty() {
             warn!("No pipelines found for project: {}", self.project_path);
@@ -143,7 +153,6 @@ impl GitLabProvider {
             provider: "GitLab".to_string(),
             project: self.project_path.clone(),
             collected_at: Utc::now(),
-            pipelines_analyzed: pipelines.len(),
             pipeline_summary,
         })
     }

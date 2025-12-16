@@ -6,7 +6,6 @@ pub struct CIInsights {
     pub provider: String,
     pub project: String,
     pub collected_at: DateTime<Utc>,
-    pub pipelines_analyzed: usize,
     pub pipeline_summary: PipelineSummary,
 }
 

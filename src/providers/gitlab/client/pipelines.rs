@@ -16,7 +16,7 @@ impl GitLabClient {
         &self,
         project_path: &str,
         limit: usize,
-        branch: Option<&str>,
+        ref_: Option<&str>,
     ) -> Result<Vec<fetch_pipelines::FetchPipelinesProjectPipelinesNodes>> {
         let mut all_pipelines = Vec::new();
         let mut cursor: Option<String> = None;
@@ -34,12 +34,15 @@ impl GitLabClient {
                 project_path: project_path.to_string(),
                 first: fetch_count,
                 after: cursor.clone(),
-                ref_: branch.map(|b| b.to_string()),
+                ref_: ref_.map(|r| r.to_string()),
             };
 
             let request_body = FetchPipelines::build_query(variables);
 
-            let request = self.client.post(self.graphql_url.clone()).json(&request_body);
+            let request = self
+                .client
+                .post(self.graphql_url.clone())
+                .json(&request_body);
             let request = self.auth_request(request);
 
             let response = request.send().await?;
@@ -47,7 +50,8 @@ impl GitLabClient {
                 response.json().await?;
 
             if let Some(errors) = response_body.errors {
-                let error_messages: Vec<String> = errors.iter().map(|e| e.message.clone()).collect();
+                let error_messages: Vec<String> =
+                    errors.iter().map(|e| e.message.clone()).collect();
                 return Err(CILensError::Config(format!(
                     "GraphQL errors: {}",
                     error_messages.join(", ")
