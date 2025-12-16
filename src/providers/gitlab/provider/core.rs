@@ -4,13 +4,16 @@ use crate::providers::gitlab::client::GitLabClient;
 
 pub struct GitLabProvider {
     pub client: GitLabClient,
-    pub project_id: String,
+    pub project_path: String,
 }
 
 impl GitLabProvider {
-    pub fn new(base_url: &str, project_id: String, token: Option<Token>) -> Result<Self> {
+    pub fn new(base_url: &str, project_path: String, token: Option<Token>) -> Result<Self> {
         let client = GitLabClient::new(base_url, token)?;
 
-        Ok(Self { client, project_id })
+        Ok(Self {
+            client,
+            project_path,
+        })
     }
 }

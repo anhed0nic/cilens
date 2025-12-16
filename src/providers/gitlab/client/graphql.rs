@@ -1,120 +1,16 @@
-use serde::{Deserialize, Serialize};
+use graphql_client::GraphQLQuery;
 
 use super::core::GitLabClient;
 use crate::error::{CILensError, Result};
 
 /// GraphQL query for fetching pipelines with jobs and dependencies
-const PIPELINES_QUERY: &str = r#"
-query($projectPath: ID!, $first: Int!, $after: String, $ref: String) {
-  project(fullPath: $projectPath) {
-    pipelines(first: $first, after: $after, ref: $ref) {
-      pageInfo {
-        hasNextPage
-        endCursor
-      }
-      nodes {
-        iid
-        status
-        duration
-        jobs {
-          nodes {
-            name
-            status
-            duration
-            needs {
-              nodes {
-                name
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}
-"#;
-
-/// Variables for pipeline GraphQL queries
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PipelineQueryVariables {
-    pub project_path: String,
-    pub first: i32,
-    pub after: Option<String>,
-    #[serde(rename = "ref")]
-    pub ref_name: Option<String>,
-}
-
-/// Top-level GraphQL response for pipeline queries
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PipelineQueryResponse {
-    pub project: Option<ProjectData>,
-}
-
-/// Project data containing pipeline information
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ProjectData {
-    pub pipelines: Option<PipelineConnection>,
-}
-
-/// Connection type for paginated pipeline results
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PipelineConnection {
-    pub page_info: PageInfo,
-    pub nodes: Vec<PipelineNode>,
-}
-
-/// Pagination information
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PageInfo {
-    pub has_next_page: bool,
-    pub end_cursor: Option<String>,
-}
-
-/// Individual pipeline node containing pipeline details
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PipelineNode {
-    pub iid: String,
-    pub status: String,
-    pub duration: Option<u32>,
-    pub jobs: Option<JobConnection>,
-}
-
-/// Connection type for jobs within a pipeline
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct JobConnection {
-    pub nodes: Vec<JobNode>,
-}
-
-/// Individual job node containing job details
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct JobNode {
-    pub name: String,
-    pub status: String,
-    pub duration: Option<f64>,
-    pub needs: Option<NeedsConnection>,
-}
-
-/// Connection type for job dependencies (needs)
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct NeedsConnection {
-    pub nodes: Vec<NeedNode>,
-}
-
-/// Individual need node representing a job dependency
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct NeedNode {
-    pub name: String,
-}
+#[derive(GraphQLQuery)]
+#[graphql(
+    schema_path = "graphql/gitlab_schema.json",
+    query_path = "graphql/pipelines.graphql",
+    response_derives = "Debug,PartialEq"
+)]
+pub struct FetchPipelines;
 
 impl GitLabClient {
     /// Fetch pipelines using GraphQL with cursor-based pagination
@@ -132,28 +28,17 @@ impl GitLabClient {
     /// * The GraphQL query fails
     /// * The project is not found
     /// * The response cannot be deserialized
-    ///
-    /// # Example
-    /// ```no_run
-    /// # use cilens::providers::gitlab::client::core::GitLabClient;
-    /// # async fn example() -> cilens::error::Result<()> {
-    /// let client = GitLabClient::new("https://gitlab.com", None)?;
-    /// let pipelines = client.fetch_pipelines_graphql("group/project", 10, Some("main")).await?;
-    /// println!("Found {} pipelines", pipelines.len());
-    /// # Ok(())
-    /// # }
-    /// ```
     pub async fn fetch_pipelines_graphql(
         &self,
         project_path: &str,
         limit: usize,
         branch: Option<&str>,
-    ) -> Result<Vec<PipelineNode>> {
+    ) -> Result<Vec<fetch_pipelines::FetchPipelinesProjectPipelinesNodes>> {
         let mut all_pipelines = Vec::new();
         let mut cursor: Option<String> = None;
 
         // GitLab GraphQL typically allows up to 100 items per page
-        const PAGE_SIZE: i32 = 100;
+        const PAGE_SIZE: i64 = 100;
 
         loop {
             // Calculate how many more pipelines we need
@@ -163,24 +48,44 @@ impl GitLabClient {
             }
 
             // Request at most PAGE_SIZE items, but no more than what we need
-            let fetch_count = std::cmp::min(remaining, PAGE_SIZE as usize) as i32;
+            let fetch_count = std::cmp::min(remaining, PAGE_SIZE as usize) as i64;
 
-            let variables = PipelineQueryVariables {
+            let variables = fetch_pipelines::Variables {
                 project_path: project_path.to_string(),
                 first: fetch_count,
                 after: cursor.clone(),
-                ref_name: branch.map(|b| b.to_string()),
+                ref_: branch.map(|b| b.to_string()),
             };
 
-            let response: PipelineQueryResponse =
-                self.graphql_query(PIPELINES_QUERY, variables).await?;
+            let request_body = FetchPipelines::build_query(variables);
 
-            // Extract project data or return error if not found
-            let project = response.project.ok_or_else(|| {
+            let request = self.client.post(self.graphql_url.clone()).json(&request_body);
+            let request = self.auth_request(request);
+
+            let response = request.send().await?;
+            let response_body: graphql_client::Response<fetch_pipelines::ResponseData> =
+                response.json().await?;
+
+            // Check for GraphQL errors
+            if let Some(errors) = response_body.errors {
+                let error_messages: Vec<String> = errors.iter().map(|e| e.message.clone()).collect();
+                return Err(CILensError::Config(format!(
+                    "GraphQL errors: {}",
+                    error_messages.join(", ")
+                )));
+            }
+
+            // Extract data
+            let data = response_body.data.ok_or_else(|| {
+                CILensError::Config("GraphQL response contained no data".to_string())
+            })?;
+
+            // Extract project data
+            let project = data.project.ok_or_else(|| {
                 CILensError::Config(format!("Project '{}' not found", project_path))
             })?;
 
-            // Extract pipelines or return error if not available
+            // Extract pipelines
             let pipelines = project.pipelines.ok_or_else(|| {
                 CILensError::Config(format!(
                     "No pipeline data available for project '{}'",
@@ -188,8 +93,8 @@ impl GitLabClient {
                 ))
             })?;
 
-            // Collect pipeline nodes
-            all_pipelines.extend(pipelines.nodes);
+            // Collect pipeline nodes (nodes is Option<Vec<Option<T>>>, so we flatten twice)
+            all_pipelines.extend(pipelines.nodes.into_iter().flatten().flatten());
 
             // Check if there are more pages and we haven't reached the limit
             if !pipelines.page_info.has_next_page || all_pipelines.len() >= limit {

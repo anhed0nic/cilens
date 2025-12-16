@@ -1,5 +1,4 @@
 mod core;
-mod graphql;
-mod pipelines;
+pub mod graphql;
 
 pub use core::GitLabClient;

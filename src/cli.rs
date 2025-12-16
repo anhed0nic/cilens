@@ -30,7 +30,7 @@ enum Commands {
         base_url: String,
 
         #[arg(long)]
-        project_id: String,
+        project_path: String,
 
         #[arg(long, default_value_t = 20)]
         limit: usize,
@@ -45,17 +45,17 @@ impl Cli {
         &self,
         token: Option<&String>,
         base_url: &str,
-        project_id: &str,
+        project_path: &str,
         limit: usize,
         branch: Option<&str>,
     ) -> Result<()> {
-        info!("Collecting GitLab insights for project: {project_id}");
+        info!("Collecting GitLab insights for project: {project_path}");
 
         let token = token.map(|t| Token::from(t.as_str()));
 
-        let provider = GitLabProvider::new(base_url, project_id.to_owned(), token)?;
+        let provider = GitLabProvider::new(base_url, project_path.to_owned(), token)?;
 
-        let insights = provider.collect_insights(project_id, limit, branch).await?;
+        let insights = provider.collect_insights(limit, branch).await?;
 
         let json_output = if self.pretty {
             serde_json::to_string_pretty(&insights)?
@@ -78,14 +78,14 @@ impl Cli {
             Commands::Gitlab {
                 token,
                 base_url,
-                project_id,
+                project_path,
                 limit,
                 branch,
             } => {
                 self.execute_gitlab(
                     token.as_ref(),
                     base_url,
-                    project_id,
+                    project_path,
                     *limit,
                     branch.as_deref(),
                 )

@@ -1,0 +1,26 @@
+query FetchPipelines($projectPath: ID!, $first: Int!, $after: String, $ref: String) {
+  project(fullPath: $projectPath) {
+    pipelines(first: $first, after: $after, ref: $ref) {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      nodes {
+        status
+        duration
+        jobs {
+          nodes {
+            name
+            status
+            duration
+            needs {
+              nodes {
+                name
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
