@@ -16,4 +16,12 @@ pub struct PipelineSummary {
     pub failed_pipelines: usize,
     pub pipeline_success_rate: f64,
     pub average_successful_pipeline_duration_seconds: f64,
+    pub average_critical_path_duration_seconds: f64,
+    pub example_critical_path: Option<CriticalPath>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CriticalPath {
+    pub jobs: Vec<String>,
+    pub total_duration_seconds: f64,
 }

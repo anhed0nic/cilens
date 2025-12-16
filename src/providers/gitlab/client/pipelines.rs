@@ -20,7 +20,7 @@ impl GitLabClient {
     ) -> Result<Vec<fetch_pipelines::FetchPipelinesProjectPipelinesNodes>> {
         let mut all_pipelines = Vec::new();
         let mut cursor: Option<String> = None;
-        const PAGE_SIZE: i64 = 100;
+        const PAGE_SIZE: i64 = 50;
 
         loop {
             let remaining = limit.saturating_sub(all_pipelines.len());
