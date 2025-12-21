@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -36,4 +37,5 @@ pub struct TypeMetrics {
     pub success_rate: f64,
     pub average_duration_seconds: f64,
     pub critical_path: Option<CriticalPath>,
+    pub retried_jobs: IndexMap<String, usize>,
 }

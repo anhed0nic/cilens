@@ -1,4 +1,9 @@
-query FetchPipelines($projectPath: ID!, $first: Int!, $after: String, $ref: String) {
+query FetchPipelines(
+  $projectPath: ID!
+  $first: Int!
+  $after: String
+  $ref: String
+) {
   project(fullPath: $projectPath) {
     pipelines(first: $first, after: $after, ref: $ref) {
       pageInfo {
@@ -15,6 +20,7 @@ query FetchPipelines($projectPath: ID!, $first: Int!, $after: String, $ref: Stri
             name
             status
             duration
+            retried
             stage {
               name
             }

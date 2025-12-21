@@ -1,4 +1,5 @@
 use chrono::Utc;
+use indexmap::IndexMap;
 use log::{info, warn};
 use std::collections::HashMap;
 
@@ -21,6 +22,7 @@ struct GitLabJob {
     name: String,
     stage: String,
     duration: f64,
+    retried: bool,
     needs: Vec<String>,
 }
 
@@ -84,6 +86,7 @@ impl GitLabProvider {
                             name: job_node.name.unwrap_or_default(),
                             stage: job_node.stage.and_then(|s| s.name).unwrap_or_default(),
                             duration: dur as f64,
+                            retried: job_node.retried.unwrap_or(false),
                             needs: job_node
                                 .needs
                                 .map(|needs_conn| {
@@ -192,12 +195,8 @@ impl GitLabProvider {
             .iter()
             .map(|need| {
                 let need_str = need.as_str();
-                let time = Self::calculate_job_finish_time(
-                    need_str,
-                    job_map,
-                    finish_times,
-                    predecessors,
-                );
+                let time =
+                    Self::calculate_job_finish_time(need_str, job_map, finish_times, predecessors);
                 (need_str, time)
             })
             .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
@@ -359,6 +358,22 @@ impl GitLabProvider {
         items.into_iter().take(5).map(|(name, _)| name).collect()
     }
 
+    fn retried_jobs(pipelines: &[&GitLabPipeline]) -> IndexMap<String, usize> {
+        let mut retry_counts: HashMap<String, usize> = HashMap::new();
+
+        for pipeline in pipelines {
+            for job in &pipeline.jobs {
+                if job.retried {
+                    *retry_counts.entry(job.name.clone()).or_insert(0) += 1;
+                }
+            }
+        }
+
+        let mut items: Vec<(String, usize)> = retry_counts.into_iter().collect();
+        items.sort_by(|a, b| b.1.cmp(&a.1));
+        items.into_iter().collect()
+    }
+
     fn calculate_type_metrics(pipelines: &[&GitLabPipeline]) -> TypeMetrics {
         let total_pipelines = pipelines.len();
 
@@ -406,6 +421,8 @@ impl GitLabProvider {
             None
         };
 
+        let retried_jobs = Self::retried_jobs(pipelines);
+
         TypeMetrics {
             total_pipelines,
             successful_pipelines: successful_pipelines.len(),
@@ -413,6 +430,7 @@ impl GitLabProvider {
             success_rate,
             average_duration_seconds,
             critical_path,
+            retried_jobs,
         }
     }
 }
