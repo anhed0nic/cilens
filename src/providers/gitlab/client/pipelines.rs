@@ -7,16 +7,17 @@ use crate::error::{CILensError, Result};
 #[graphql(
     schema_path = "src/providers/gitlab/client/schema.json",
     query_path = "src/providers/gitlab/client/pipelines.graphql",
-    response_derives = "Debug,PartialEq"
+    response_derives = "Debug,PartialEq,Clone"
 )]
 pub struct FetchPipelines;
 
 impl GitLabClient {
-    pub async fn fetch_pipelines_graphql(
+    async fn fetch_pipelines_with_status(
         &self,
         project_path: &str,
         limit: usize,
         ref_: Option<&str>,
+        status: Option<fetch_pipelines::PipelineStatusEnum>,
     ) -> Result<Vec<fetch_pipelines::FetchPipelinesProjectPipelinesNodes>> {
         const PAGE_SIZE: i64 = 50;
 
@@ -37,6 +38,7 @@ impl GitLabClient {
                 first: fetch_count,
                 after: cursor.clone(),
                 ref_: ref_.map(std::string::ToString::to_string),
+                status: status.clone(),
             };
 
             let request_body = FetchPipelines::build_query(variables);
@@ -87,6 +89,39 @@ impl GitLabClient {
             }
         }
 
+        all_pipelines.truncate(limit);
+
+        Ok(all_pipelines)
+    }
+
+    pub async fn fetch_pipelines(
+        &self,
+        project_path: &str,
+        limit: usize,
+        ref_: Option<&str>,
+    ) -> Result<Vec<fetch_pipelines::FetchPipelinesProjectPipelinesNodes>> {
+        // Fetch SUCCESS and FAILED pipelines in parallel
+        let half_limit = limit / 2;
+
+        let (success_result, failed_result) = tokio::join!(
+            self.fetch_pipelines_with_status(
+                project_path,
+                half_limit,
+                ref_,
+                Some(fetch_pipelines::PipelineStatusEnum::SUCCESS),
+            ),
+            self.fetch_pipelines_with_status(
+                project_path,
+                half_limit,
+                ref_,
+                Some(fetch_pipelines::PipelineStatusEnum::FAILED),
+            ),
+        );
+
+        let mut all_pipelines = success_result?;
+        all_pipelines.extend(failed_result?);
+
+        // Note: Pipelines are already sorted by creation time in GitLab's response
         all_pipelines.truncate(limit);
 
         Ok(all_pipelines)

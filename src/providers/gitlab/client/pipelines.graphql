@@ -3,9 +3,10 @@ query FetchPipelines(
   $first: Int!
   $after: String
   $ref: String
+  $status: PipelineStatusEnum
 ) {
   project(fullPath: $projectPath) {
-    pipelines(first: $first, after: $after, ref: $ref) {
+    pipelines(first: $first, after: $after, ref: $ref, status: $status) {
       pageInfo {
         hasNextPage
         endCursor

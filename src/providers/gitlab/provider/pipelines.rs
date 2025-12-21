@@ -37,7 +37,7 @@ impl GitLabProvider {
 
         let pipeline_nodes = self
             .client
-            .fetch_pipelines_graphql(&self.project_path, limit, ref_)
+            .fetch_pipelines(&self.project_path, limit, ref_)
             .await?;
 
         let pipelines: Vec<GitLabPipeline> = pipeline_nodes
@@ -53,16 +53,11 @@ impl GitLabProvider {
     fn transform_pipeline_node(
         node: fetch_pipelines::FetchPipelinesProjectPipelinesNodes,
     ) -> Option<GitLabPipeline> {
-        // Only include completed pipelines with duration
-        if !((node.status == fetch_pipelines::PipelineStatusEnum::SUCCESS
-            || node.status == fetch_pipelines::PipelineStatusEnum::FAILED)
-            && node.duration.is_some())
-        {
-            return None;
-        }
+        // Only include pipelines with duration (status filtering done at GraphQL level)
+        let duration = node.duration?;
 
         #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-        let duration = node.duration.unwrap() as usize;
+        let duration = duration as usize;
         let jobs = Self::transform_jobs(node.jobs);
 
         Some(GitLabPipeline {
