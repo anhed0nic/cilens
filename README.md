@@ -1,16 +1,16 @@
-# CILens - CI/CD Insights Tool
+# 🔍 CILens - CI/CD Insights Tool
 
 A Rust CLI tool for collecting and analyzing CI/CD insights from GitLab.
 
-## Features
+## ✨ Features
 
-- **Smart Pipeline Clustering** - Groups pipelines by job signature and automatically merges similar types (>80% similarity) to reduce noise
-- **Accurate Critical Path Analysis** - Identifies the slowest execution path, correctly handling both explicit dependencies and stage-based execution
-- **Flakiness Detection** - Identifies unreliable jobs that fail intermittently and need retries (top 5 flakiest jobs)
-- **Success Rate Metrics** - Per-pipeline-type success rates and failure analysis
-- **Duration Analytics** - Average duration tracking for pipelines and critical paths
+- **🧩 Smart Pipeline Clustering** - Groups pipelines by job signature and automatically merges similar types (>80% similarity) to reduce noise
+- **🎯 Accurate Critical Path Analysis** - Identifies the slowest execution path, correctly handling both explicit dependencies and stage-based execution
+- **⚠️ Flakiness Detection** - Identifies unreliable jobs that fail intermittently and need retries (top 5 flakiest jobs)
+- **📊 Success Rate Metrics** - Per-pipeline-type success rates and failure analysis
+- **⏱️ Duration Analytics** - Average duration tracking for pipelines and critical paths
 
-## Installation
+## 📦 Installation
 
 ### Installer Script
 
@@ -34,7 +34,7 @@ Or run without installing:
 nix run github:dsalaza4/cilens -- --help
 ```
 
-## Quick Start
+## 🚀 Quick Start
 
 ```bash
 # Get your GitLab token from: https://gitlab.com/-/profile/personal_access_tokens
@@ -46,7 +46,7 @@ export GITLAB_TOKEN="glpat-your-token"
 cilens gitlab --project "group/project" --limit 20 --pretty
 ```
 
-## Usage
+## 💡 Usage
 
 ```bash
 # Basic usage
@@ -62,20 +62,22 @@ cilens gitlab --project "your/project" --branch main --limit 50
 cilens gitlab --url "https://gitlab.example.com" --project "your/project"
 ```
 
-## Options
+## ⚙️ Options
 
 **Global:**
+
 - `-o, --output <FILE>` - Output file path (default: stdout)
 - `-p, --pretty` - Pretty print JSON
 
 **GitLab:**
+
 - `-t, --token <TOKEN>` - GitLab token (or use `GITLAB_TOKEN` env var)
 - `-u, --url <URL>` - GitLab instance URL (default: https://gitlab.com)
 - `-P, --project <PROJECT>` - Project ID or path (e.g., "group/project")
 - `-l, --limit <LIMIT>` - Number of pipelines to analyze (default: 20)
 - `-b, --branch <BRANCH>` - Filter by branch (optional)
 
-## Output Format
+## 📄 Output Format
 
 The tool outputs detailed insights grouped by pipeline type:
 
@@ -129,22 +131,22 @@ The tool outputs detailed insights grouped by pipeline type:
 }
 ```
 
-### Key Metrics Explained
+### 📖 Key Metrics Explained
 
-- **Pipeline Type Clustering**: Groups pipelines by job signature (exact match), then merges types with >80% job similarity to reduce fragmentation. For example, pipelines differing by only 1-2 optional jobs are merged into a single type.
-- **Jobs**: Union of all jobs that appear in this pipeline type (when types are merged, shows all jobs from variants)
-- **IDs**: GitLab pipeline IDs for all pipelines in this type (useful for drilling down)
-- **Critical Path**: The slowest execution path through the pipeline, considering both explicit job dependencies (`needs`) and stage-based execution
-- **Flaky Jobs**: Identifies unreliable jobs with flakiness score (% of runs needing retry), retry count, and total occurrences (only jobs appearing 2+ times, top 5 shown)
-- **Success Rate**: Percentage of successful pipeline runs for each type
+- **🧩 Pipeline Type Clustering**: Groups pipelines by job signature (exact match), then merges types with >80% job similarity to reduce fragmentation. For example, pipelines differing by only 1-2 optional jobs are merged into a single type.
+- **🔧 Jobs**: Union of all jobs that appear in this pipeline type (when types are merged, shows all jobs from variants)
+- **🔑 IDs**: GitLab pipeline IDs for all pipelines in this type (useful for drilling down)
+- **🎯 Critical Path**: The slowest execution path through the pipeline, considering both explicit job dependencies (`needs`) and stage-based execution
+- **⚠️ Flaky Jobs**: Identifies unreliable jobs with flakiness score (% of runs needing retry), retry count, and total occurrences (only jobs appearing 2+ times, top 5 shown)
+- **✅ Success Rate**: Percentage of successful pipeline runs for each type
 
-## Future Work
+## 🔮 Future Work
 
 The following insights would provide additional value for teams analyzing their CI/CD pipelines:
 
-### High-Impact Additions
+### 🚀 High-Impact Additions
 
-#### 1. Duration Percentiles (P50, P95, P99)
+#### 📈 1. Duration Percentiles (P50, P95, P99)
 
 ```json
 "duration_percentiles": {
@@ -156,7 +158,7 @@ The following insights would provide additional value for teams analyzing their 
 
 **Value**: Shows realistic expectations vs average (which can be skewed by outliers).
 
-#### 2. Waste Metrics
+#### 💸 2. Waste Metrics
 
 ```json
 "waste_metrics": {
@@ -168,7 +170,7 @@ The following insights would provide additional value for teams analyzing their 
 
 **Value**: Quantifies the business impact of failures and inefficiencies.
 
-#### 3. Failure Patterns
+#### ❌ 3. Failure Patterns
 
 ```json
 "most_failing_jobs": [
@@ -182,7 +184,7 @@ The following insights would provide additional value for teams analyzing their 
 
 **Value**: Shows jobs with chronic failures (different from flakiness which indicates intermittent issues).
 
-#### 4. Parallelization Efficiency
+#### ⚡ 4. Parallelization Efficiency
 
 ```json
 "parallelization_efficiency": {
@@ -195,7 +197,7 @@ The following insights would provide additional value for teams analyzing their 
 
 **Value**: Reveals if you're effectively using parallel runners.
 
-#### 5. Time-to-Feedback
+#### ⏰ 5. Time-to-Feedback
 
 ```json
 "feedback_metrics": {
@@ -206,7 +208,7 @@ The following insights would provide additional value for teams analyzing their 
 
 **Value**: Critical for developer experience - faster feedback = faster fixes.
 
-#### 6. Stage-Level Insights
+#### 🎭 6. Stage-Level Insights
 
 ```json
 "stage_breakdown": [
@@ -222,7 +224,7 @@ The following insights would provide additional value for teams analyzing their 
 
 **Value**: Helps identify which stages are problematic or slow.
 
-#### 7. Trend Indicators
+#### 📊 7. Trend Indicators
 
 (When analyzing multiple time windows)
 
@@ -236,7 +238,7 @@ The following insights would provide additional value for teams analyzing their 
 
 **Value**: Shows if things are getting better or worse over time.
 
-#### 8. Job Dependency Impact
+#### 🔗 8. Job Dependency Impact
 
 ```json
 "blocking_jobs": [
