@@ -4,11 +4,35 @@ A Rust CLI tool for collecting and analyzing CI/CD insights from GitLab.
 
 ## Features
 
-- **Pipeline Type Clustering** - Automatically groups pipelines by job signature to identify distinct workflow patterns
-- **Critical Path Analysis** - Identifies the longest dependency chain in your pipelines
+- **Smart Pipeline Clustering** - Groups pipelines by job signature and automatically merges similar types (>80% similarity) to reduce noise
+- **Accurate Critical Path Analysis** - Identifies the slowest execution path, correctly handling both explicit dependencies and stage-based execution
 - **Flakiness Detection** - Identifies unreliable jobs that fail intermittently and need retries (top 5 flakiest jobs)
 - **Success Rate Metrics** - Per-pipeline-type success rates and failure analysis
 - **Duration Analytics** - Average duration tracking for pipelines and critical paths
+
+## Installation
+
+### Installer Script
+
+Install the latest version for your platform:
+
+```bash
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/dsalaza4/cilens/releases/download/v0.1.0/cilens-installer.sh | sh
+```
+
+### Nix
+
+Install using Nix flakes:
+
+```bash
+nix profile install github:dsalaza4/cilens
+```
+
+Or run without installing:
+
+```bash
+nix run github:dsalaza4/cilens -- --help
+```
 
 ## Quick Start
 
@@ -67,6 +91,8 @@ The tool outputs detailed insights grouped by pipeline type:
       "label": "Test Pipeline",
       "count": 5,
       "percentage": 62.5,
+      "jobs": ["lint", "test", "deploy"],
+      "ids": ["gid://gitlab/Ci::Pipeline/123", "gid://gitlab/Ci::Pipeline/124"],
       "stages": ["test"],
       "ref_patterns": ["main"],
       "sources": ["push"],
@@ -105,8 +131,10 @@ The tool outputs detailed insights grouped by pipeline type:
 
 ### Key Metrics Explained
 
-- **Pipeline Type Clustering**: Groups pipelines by job signature (e.g., all pipelines with jobs A+B+C become one type)
-- **Critical Path**: Shows the longest dependency chain affecting pipeline duration
+- **Pipeline Type Clustering**: Groups pipelines by job signature (exact match), then merges types with >80% job similarity to reduce fragmentation. For example, pipelines differing by only 1-2 optional jobs are merged into a single type.
+- **Jobs**: Union of all jobs that appear in this pipeline type (when types are merged, shows all jobs from variants)
+- **IDs**: GitLab pipeline IDs for all pipelines in this type (useful for drilling down)
+- **Critical Path**: The slowest execution path through the pipeline, considering both explicit job dependencies (`needs`) and stage-based execution
 - **Flaky Jobs**: Identifies unreliable jobs with flakiness score (% of runs needing retry), retry count, and total occurrences (only jobs appearing 2+ times, top 5 shown)
 - **Success Rate**: Percentage of successful pipeline runs for each type
 
@@ -128,21 +156,7 @@ The following insights would provide additional value for teams analyzing their 
 
 **Value**: Shows realistic expectations vs average (which can be skewed by outliers).
 
-#### 2. Slowest Jobs (Bottlenecks)
-
-```json
-"slowest_jobs": [
-  {
-    "name": "integration-tests",
-    "avg_duration": 1200.0,
-    "percentage_of_pipeline": 45.2
-  }
-]
-```
-
-**Value**: Identifies optimization targets with highest ROI.
-
-#### 3. Waste Metrics
+#### 2. Waste Metrics
 
 ```json
 "waste_metrics": {
@@ -154,7 +168,7 @@ The following insights would provide additional value for teams analyzing their 
 
 **Value**: Quantifies the business impact of failures and inefficiencies.
 
-#### 4. Failure Patterns
+#### 3. Failure Patterns
 
 ```json
 "most_failing_jobs": [
@@ -168,7 +182,7 @@ The following insights would provide additional value for teams analyzing their 
 
 **Value**: Shows jobs with chronic failures (different from flakiness which indicates intermittent issues).
 
-#### 5. Parallelization Efficiency
+#### 4. Parallelization Efficiency
 
 ```json
 "parallelization_efficiency": {
@@ -181,7 +195,7 @@ The following insights would provide additional value for teams analyzing their 
 
 **Value**: Reveals if you're effectively using parallel runners.
 
-#### 6. Time-to-Feedback
+#### 5. Time-to-Feedback
 
 ```json
 "feedback_metrics": {
@@ -192,7 +206,7 @@ The following insights would provide additional value for teams analyzing their 
 
 **Value**: Critical for developer experience - faster feedback = faster fixes.
 
-#### 7. Stage-Level Insights
+#### 6. Stage-Level Insights
 
 ```json
 "stage_breakdown": [
@@ -208,7 +222,7 @@ The following insights would provide additional value for teams analyzing their 
 
 **Value**: Helps identify which stages are problematic or slow.
 
-#### 8. Trend Indicators
+#### 7. Trend Indicators
 
 (When analyzing multiple time windows)
 
@@ -222,7 +236,7 @@ The following insights would provide additional value for teams analyzing their 
 
 **Value**: Shows if things are getting better or worse over time.
 
-#### 9. Job Dependency Impact
+#### 8. Job Dependency Impact
 
 ```json
 "blocking_jobs": [

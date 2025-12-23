@@ -21,13 +21,14 @@
         let
           naersk' = pkgs.callPackage naersk { };
         in
-        rec {
+        {
           packages.default = naersk'.buildPackage { src = ./.; };
 
           devShells.default = pkgs.mkShell {
             packages = [
-              pkgs.rustc
               pkgs.cargo
+              pkgs.cargo-dist
+              pkgs.rustc
 
               self'.packages.default
             ];
