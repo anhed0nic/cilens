@@ -141,7 +141,7 @@ impl GitLabClient {
     pub async fn fetch_pipeline_jobs(
         &self,
         project_path: &str,
-        pipeline_id: String,
+        pipeline_id: &str,
     ) -> Result<Vec<fetch_pipeline_jobs::FetchPipelineJobsProjectPipelineJobsNodes>> {
         const PAGE_SIZE: i64 = 100;
         let mut all_jobs = Vec::new();
@@ -150,7 +150,7 @@ impl GitLabClient {
         loop {
             let variables = fetch_pipeline_jobs::Variables {
                 project_path: project_path.to_string(),
-                pipeline_id: pipeline_id.clone(),
+                pipeline_id: pipeline_id.to_string(),
                 first: PAGE_SIZE,
                 after: cursor.clone(),
             };

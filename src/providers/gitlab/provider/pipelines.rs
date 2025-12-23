@@ -54,15 +54,11 @@ impl GitLabProvider {
 
         let results = futures::future::join_all(futures).await;
 
-        // Collect successful results
-        let mut pipelines = Vec::new();
-        for result in results {
-            match result {
-                Ok(Some(pipeline)) => pipelines.push(pipeline),
-                Ok(None) => {} // Pipeline filtered out (no duration)
-                Err(e) => return Err(e),
-            }
-        }
+        // Collect successful results, filtering out pipelines without duration
+        let pipelines: Vec<_> = results
+            .into_iter()
+            .filter_map(|result| result.transpose())
+            .collect::<Result<_>>()?;
 
         info!("Processed {} pipelines", pipelines.len());
 
@@ -84,7 +80,7 @@ impl GitLabProvider {
         // Fetch all jobs for this pipeline
         let job_nodes = self
             .client
-            .fetch_pipeline_jobs(&self.project_path, node.id.clone())
+            .fetch_pipeline_jobs(&self.project_path, &node.id)
             .await?;
 
         let jobs = Self::transform_job_nodes(job_nodes);
@@ -320,14 +316,9 @@ impl GitLabProvider {
         }) {
             "Test Pipeline".to_string()
         } else {
-            let key_jobs: Vec<&String> = job_names.iter().take(3).collect();
             format!(
                 "Pipeline: {}",
-                key_jobs
-                    .iter()
-                    .map(|j| j.as_str())
-                    .collect::<Vec<_>>()
-                    .join(", ")
+                job_names.iter().take(3).map(String::as_str).collect::<Vec<_>>().join(", ")
             )
         };
 
@@ -359,21 +350,21 @@ impl GitLabProvider {
         let threshold = pipelines.len() / 10;
 
         let stages = Self::extract_common(pipelines, threshold * 2, |p| {
-            p.jobs.iter().map(|j| j.stage.clone()).collect()
+            p.jobs.iter().map(|j| j.stage.as_str()).collect()
         });
 
-        let ref_patterns = Self::extract_common(pipelines, threshold, |p| vec![p.ref_.clone()]);
+        let ref_patterns = Self::extract_common(pipelines, threshold, |p| vec![p.ref_.as_str()]);
 
-        let sources = Self::extract_common(pipelines, threshold, |p| vec![p.source.clone()]);
+        let sources = Self::extract_common(pipelines, threshold, |p| vec![p.source.as_str()]);
 
         (stages, ref_patterns, sources)
     }
 
     fn extract_common<F>(pipelines: &[&GitLabPipeline], threshold: usize, extract: F) -> Vec<String>
     where
-        F: Fn(&GitLabPipeline) -> Vec<String>,
+        F: Fn(&GitLabPipeline) -> Vec<&str>,
     {
-        let mut counts: HashMap<String, usize> = HashMap::new();
+        let mut counts: HashMap<&str, usize> = HashMap::new();
 
         for pipeline in pipelines {
             for value in extract(pipeline) {
@@ -381,13 +372,17 @@ impl GitLabProvider {
             }
         }
 
-        let mut items: Vec<(String, usize)> = counts
+        let mut items: Vec<(&str, usize)> = counts
             .into_iter()
             .filter(|(_, count)| *count >= threshold)
             .collect();
 
         items.sort_by(|a, b| b.1.cmp(&a.1));
-        items.into_iter().take(5).map(|(name, _)| name).collect()
+        items
+            .into_iter()
+            .take(5)
+            .map(|(name, _)| name.to_string())
+            .collect()
     }
 
     fn is_flaky(jobs: &[&GitLabJob]) -> bool {
@@ -407,15 +402,15 @@ impl GitLabProvider {
 
         // Analyze each pipeline for flaky jobs
         for pipeline in pipelines {
-            let mut jobs_by_name: HashMap<String, Vec<&GitLabJob>> = HashMap::new();
+            let mut jobs_by_name: HashMap<&str, Vec<&GitLabJob>> = HashMap::new();
             for job in &pipeline.jobs {
-                jobs_by_name.entry(job.name.clone()).or_default().push(job);
+                jobs_by_name.entry(job.name.as_str()).or_default().push(job);
             }
 
             for (name, jobs) in jobs_by_name {
-                *total_counts.entry(name.clone()).or_insert(0) += 1;
+                *total_counts.entry(name.to_string()).or_insert(0) += 1;
                 if Self::is_flaky(&jobs) {
-                    *flaky_counts.entry(name).or_insert(0) += 1;
+                    *flaky_counts.entry(name.to_string()).or_insert(0) += 1;
                 }
             }
         }
@@ -450,6 +445,29 @@ impl GitLabProvider {
         results.into_iter().take(5).collect()
     }
 
+    fn aggregate_critical_paths(pipelines: &[&GitLabPipeline]) -> Option<CriticalPath> {
+        let critical_paths: Vec<_> = pipelines
+            .iter()
+            .filter_map(|p| Self::calculate_critical_path(p))
+            .collect();
+
+        if critical_paths.is_empty() {
+            return None;
+        }
+
+        #[allow(clippy::cast_precision_loss)]
+        let average_duration = critical_paths
+            .iter()
+            .map(|cp| cp.average_duration_seconds)
+            .sum::<f64>()
+            / critical_paths.len() as f64;
+
+        Some(CriticalPath {
+            jobs: critical_paths[0].jobs.clone(),
+            average_duration_seconds: average_duration,
+        })
+    }
+
     fn calculate_type_metrics(pipelines: &[&GitLabPipeline]) -> TypeMetrics {
         let total_pipelines = pipelines.len();
 
@@ -462,44 +480,21 @@ impl GitLabProvider {
         let failed_pipelines = pipelines.iter().filter(|p| p.status == "failed").count();
 
         #[allow(clippy::cast_precision_loss)]
-        let success_rate = if total_pipelines > 0 {
-            (successful_pipelines.len() as f64 / total_pipelines as f64) * 100.0
-        } else {
-            0.0
-        };
+        let success_rate =
+            (successful_pipelines.len() as f64 / total_pipelines.max(1) as f64) * 100.0;
 
         #[allow(clippy::cast_precision_loss)]
-        let average_duration_seconds = if successful_pipelines.is_empty() {
-            0.0
-        } else {
+        let average_duration_seconds = if !successful_pipelines.is_empty() {
             successful_pipelines
                 .iter()
                 .map(|p| p.duration as f64)
                 .sum::<f64>()
                 / successful_pipelines.len() as f64
-        };
-
-        let critical_paths: Vec<_> = successful_pipelines
-            .iter()
-            .filter_map(|p| Self::calculate_critical_path(p))
-            .collect();
-
-        let critical_path = if critical_paths.is_empty() {
-            None
         } else {
-            #[allow(clippy::cast_precision_loss)]
-            let average_duration = critical_paths
-                .iter()
-                .map(|cp| cp.average_duration_seconds)
-                .sum::<f64>()
-                / critical_paths.len() as f64;
-
-            Some(CriticalPath {
-                jobs: critical_paths[0].jobs.clone(),
-                average_duration_seconds: average_duration,
-            })
+            0.0
         };
 
+        let critical_path = Self::aggregate_critical_paths(&successful_pipelines);
         let flaky_jobs = Self::find_flaky_jobs(pipelines);
 
         TypeMetrics {
