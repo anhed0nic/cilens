@@ -17,6 +17,11 @@ query FetchPipelines(
         source
         status
         duration
+        stages {
+          nodes {
+            name
+          }
+        }
       }
     }
   }

@@ -15,6 +15,7 @@ struct GitLabPipeline {
     source: String,
     status: String,
     duration: usize,
+    stages: Vec<String>,
     jobs: Vec<GitLabJob>,
 }
 
@@ -25,7 +26,7 @@ struct GitLabJob {
     duration: f64,
     status: String,
     retried: bool,
-    needs: Vec<String>,
+    needs: Option<Vec<String>>,
 }
 
 impl GitLabProvider {
@@ -57,7 +58,7 @@ impl GitLabProvider {
         // Collect successful results, filtering out pipelines without duration
         let pipelines: Vec<_> = results
             .into_iter()
-            .filter_map(|result| result.transpose())
+            .filter_map(Result::transpose)
             .collect::<Result<_>>()?;
 
         info!("Processed {} pipelines", pipelines.len());
@@ -85,12 +86,27 @@ impl GitLabProvider {
 
         let jobs = Self::transform_job_nodes(job_nodes);
 
+        // Extract stage order from pipeline metadata
+        let stages = node
+            .stages
+            .map(|stages_conn| {
+                stages_conn
+                    .nodes
+                    .into_iter()
+                    .flatten()
+                    .flatten()
+                    .filter_map(|stage| stage.name)
+                    .collect()
+            })
+            .unwrap_or_default();
+
         Ok(Some(GitLabPipeline {
             id: node.id,
             ref_: node.ref_.unwrap_or_default(),
             source: node.source.unwrap_or_default(),
             status: format!("{:?}", node.status).to_lowercase(),
             duration,
+            stages,
             jobs,
         }))
     }
@@ -111,18 +127,15 @@ impl GitLabProvider {
                         .map(|s| format!("{s:?}"))
                         .unwrap_or_default(),
                     retried: job_node.retried.unwrap_or(false),
-                    needs: job_node
-                        .needs
-                        .map(|needs_conn| {
-                            needs_conn
-                                .nodes
-                                .into_iter()
-                                .flatten()
-                                .flatten()
-                                .filter_map(|need| need.name)
-                                .collect()
-                        })
-                        .unwrap_or_default(),
+                    needs: job_node.needs.map(|needs_conn| {
+                        needs_conn
+                            .nodes
+                            .into_iter()
+                            .flatten()
+                            .flatten()
+                            .filter_map(|need| need.name)
+                            .collect()
+                    }),
                 }
             })
             .collect()
@@ -133,16 +146,20 @@ impl GitLabProvider {
             return None;
         }
 
-        // Fast path: if no dependencies, return slowest job
-        if !pipeline.jobs.iter().any(|j| !j.needs.is_empty()) {
+        // Fast path: if all jobs start immediately (needs = Some([])), return slowest job
+        if pipeline
+            .jobs
+            .iter()
+            .all(|j| matches!(j.needs, Some(ref v) if v.is_empty()))
+        {
             return Self::slowest_job_path(pipeline);
         }
 
-        // Calculate finish times for dependency graph
+        // Build job map
         let job_map: HashMap<&str, &GitLabJob> =
             pipeline.jobs.iter().map(|j| (j.name.as_str(), j)).collect();
 
-        let (finish_times, predecessors) = Self::calculate_finish_times(&job_map);
+        let (finish_times, predecessors) = Self::calculate_finish_times(&job_map, &pipeline.stages);
 
         // Find and reconstruct critical path
         let (&critical_job, &total_time) = finish_times
@@ -171,15 +188,24 @@ impl GitLabProvider {
 
     fn calculate_finish_times<'a>(
         job_map: &HashMap<&'a str, &'a GitLabJob>,
+        stage_order: &[String],
     ) -> (HashMap<&'a str, f64>, HashMap<&'a str, &'a str>) {
         let mut finish_times: HashMap<&str, f64> = HashMap::new();
         let mut predecessors: HashMap<&str, &str> = HashMap::new();
+
+        // Build stage index map for quick lookup
+        let stage_index: HashMap<&str, usize> = stage_order
+            .iter()
+            .enumerate()
+            .map(|(i, s)| (s.as_str(), i))
+            .collect();
 
         // Calculate finish times for all jobs using memoization
         for &job_name in job_map.keys() {
             Self::calculate_job_finish_time(
                 job_name,
                 job_map,
+                &stage_index,
                 &mut finish_times,
                 &mut predecessors,
             );
@@ -188,9 +214,56 @@ impl GitLabProvider {
         (finish_times, predecessors)
     }
 
+    fn get_dependency_names<'a>(
+        job: &'a GitLabJob,
+        job_map: &HashMap<&'a str, &'a GitLabJob>,
+        stage_index: &HashMap<&str, usize>,
+    ) -> Vec<&'a str> {
+        match &job.needs {
+            Some(needs) if needs.is_empty() => vec![],
+            Some(needs) => needs.iter().map(String::as_str).collect(),
+            None => {
+                let current_stage_idx = stage_index.get(job.stage.as_str()).copied().unwrap_or(0);
+                job_map
+                    .iter()
+                    .filter(|(_, other_job)| {
+                        let other_stage_idx =
+                            stage_index.get(other_job.stage.as_str()).copied().unwrap_or(0);
+                        other_stage_idx < current_stage_idx
+                    })
+                    .map(|(&name, _)| name)
+                    .collect()
+            }
+        }
+    }
+
+    fn find_critical_predecessor<'a>(
+        dependencies: &[&'a str],
+        job_map: &HashMap<&'a str, &'a GitLabJob>,
+        stage_index: &HashMap<&str, usize>,
+        finish_times: &mut HashMap<&'a str, f64>,
+        predecessors: &mut HashMap<&'a str, &'a str>,
+    ) -> (&'a str, f64) {
+        dependencies
+            .iter()
+            .map(|&dep_name| {
+                let time = Self::calculate_job_finish_time(
+                    dep_name,
+                    job_map,
+                    stage_index,
+                    finish_times,
+                    predecessors,
+                );
+                (dep_name, time)
+            })
+            .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+            .unwrap_or(("", 0.0))
+    }
+
     fn calculate_job_finish_time<'a>(
         job_name: &'a str,
         job_map: &HashMap<&'a str, &'a GitLabJob>,
+        stage_index: &HashMap<&str, usize>,
         finish_times: &mut HashMap<&'a str, f64>,
         predecessors: &mut HashMap<&'a str, &'a str>,
     ) -> f64 {
@@ -199,34 +272,31 @@ impl GitLabProvider {
             return time;
         }
 
-        // Job not in map (filtered out or missing) - treat as duration 0
+        // Job not in map - treat as duration 0
         let Some(job) = job_map.get(job_name) else {
             finish_times.insert(job_name, 0.0);
             return 0.0;
         };
 
-        // Base case: no dependencies
-        if job.needs.is_empty() {
+        // Get dependencies based on needs field
+        let dependencies = Self::get_dependency_names(job, job_map, stage_index);
+
+        // No dependencies - job starts immediately
+        if dependencies.is_empty() {
             finish_times.insert(job_name, job.duration);
             return job.duration;
         }
 
-        // Recursive case: find critical predecessor
-        let (critical_pred, max_pred_time) = job
-            .needs
-            .iter()
-            .map(|need| {
-                let need_str = need.as_str();
-                let time =
-                    Self::calculate_job_finish_time(need_str, job_map, finish_times, predecessors);
-                (need_str, time)
-            })
-            .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
-            .unwrap();
+        // Find the critical (slowest) predecessor
+        let (critical_pred, max_pred_time) =
+            Self::find_critical_predecessor(&dependencies, job_map, stage_index, finish_times, predecessors);
 
         let finish_time = max_pred_time + job.duration;
         finish_times.insert(job_name, finish_time);
-        predecessors.insert(job_name, critical_pred);
+
+        if max_pred_time > 0.0 {
+            predecessors.insert(job_name, critical_pred);
+        }
 
         finish_time
     }
@@ -318,7 +388,12 @@ impl GitLabProvider {
         } else {
             format!(
                 "Pipeline: {}",
-                job_names.iter().take(3).map(String::as_str).collect::<Vec<_>>().join(", ")
+                job_names
+                    .iter()
+                    .take(3)
+                    .map(String::as_str)
+                    .collect::<Vec<_>>()
+                    .join(", ")
             )
         };
 
@@ -484,14 +559,14 @@ impl GitLabProvider {
             (successful_pipelines.len() as f64 / total_pipelines.max(1) as f64) * 100.0;
 
         #[allow(clippy::cast_precision_loss)]
-        let average_duration_seconds = if !successful_pipelines.is_empty() {
+        let average_duration_seconds = if successful_pipelines.is_empty() {
+            0.0
+        } else {
             successful_pipelines
                 .iter()
                 .map(|p| p.duration as f64)
                 .sum::<f64>()
                 / successful_pipelines.len() as f64
-        } else {
-            0.0
         };
 
         let critical_path = Self::aggregate_critical_paths(&successful_pipelines);
