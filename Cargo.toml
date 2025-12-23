@@ -1,5 +1,6 @@
 [package]
 name = "cilens"
+repository = "https:github.com/dsalaza4/cilens"
 version = "0.1.0"
 edition = "2021"
 authors = ["Daniel Salazar <podany270895@gmail.com>"]
@@ -27,3 +28,8 @@ url = "2.5"
 
 [dev-dependencies]
 mockito = "1.5"
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
