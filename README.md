@@ -5,10 +5,11 @@ A Rust CLI tool for collecting and analyzing CI/CD insights from GitLab.
 ## ✨ Features
 
 - **🧩 Smart Pipeline Clustering** - Groups pipelines by job signature and filters out rare pipeline types (configurable threshold, default 1%)
-- **🎯 Accurate Critical Path Analysis** - Identifies the slowest execution path, correctly handling both explicit dependencies and stage-based execution
-- **⚠️ Flakiness Detection** - Identifies unreliable jobs that fail intermittently and need retries (top 5 flakiest jobs)
+- **⏱️ Per-Job Time-to-Feedback** - Shows how long each job takes to complete from pipeline start, revealing actual developer wait times
+- **🔍 Dependency Tracking** - Identifies which jobs block others, showing the critical path to each job
+- **⚠️ Flakiness Detection** - Identifies unreliable jobs that fail intermittently and need retries
 - **📊 Success Rate Metrics** - Per-pipeline-type success rates and failure analysis
-- **⏱️ Duration Analytics** - Average duration tracking for pipelines and critical paths
+- **🎯 Optimization Insights** - Jobs sorted by total duration to quickly identify highest-impact optimization targets
 
 ## 📦 Installation
 
@@ -81,7 +82,6 @@ The tool outputs detailed insights grouped by pipeline type:
       "label": "Test Pipeline",
       "count": 5,
       "percentage": 62.5,
-      "jobs": ["lint", "test", "deploy"],
       "ids": ["gid://gitlab/Ci::Pipeline/123", "gid://gitlab/Ci::Pipeline/124"],
       "stages": ["test"],
       "ref_patterns": ["main"],
@@ -92,48 +92,49 @@ The tool outputs detailed insights grouped by pipeline type:
         "failed_pipelines": 3,
         "success_rate": 40.0,
         "average_duration_seconds": 648.5,
-        "critical_path": {
-          "jobs": [
-            {
-              "name": "lint",
-              "avg_duration": 45.0,
-              "percentage_of_path": 7.1
-            },
-            {
-              "name": "build",
-              "avg_duration": 180.0,
-              "percentage_of_path": 28.3
-            },
-            {
-              "name": "integration-tests",
-              "avg_duration": 410.0,
-              "percentage_of_path": 64.6
-            }
-          ],
-          "total_duration": 635.0,
-          "bottleneck": {
+        "jobs": [
+          {
             "name": "integration-tests",
-            "avg_duration": 410.0,
-            "percentage_of_path": 64.6
-          }
-        },
-        "flaky_jobs": {
-          "dns-infra plan": {
-            "total_occurrences": 9,
-            "retry_count": 4,
-            "flakiness_score": 44.44
+            "avg_duration_seconds": 410.0,
+            "avg_time_to_feedback_seconds": 635.0,
+            "predecessors": [
+              {
+                "name": "lint",
+                "avg_duration": 45.0
+              },
+              {
+                "name": "build",
+                "avg_duration": 180.0
+              }
+            ],
+            "flakiness_score": 0.0,
+            "retry_count": 0,
+            "total_occurrences": 0
           },
-          "vpc-infra lint": {
-            "total_occurrences": 9,
-            "retry_count": 4,
-            "flakiness_score": 44.44
+          {
+            "name": "build",
+            "avg_duration_seconds": 180.0,
+            "avg_time_to_feedback_seconds": 225.0,
+            "predecessors": [
+              {
+                "name": "lint",
+                "avg_duration": 45.0
+              }
+            ],
+            "flakiness_score": 0.0,
+            "retry_count": 0,
+            "total_occurrences": 0
           },
-          "lint": {
-            "total_occurrences": 14,
+          {
+            "name": "lint",
+            "avg_duration_seconds": 45.0,
+            "avg_time_to_feedback_seconds": 45.0,
+            "predecessors": [],
+            "flakiness_score": 28.57,
             "retry_count": 4,
-            "flakiness_score": 28.57
+            "total_occurrences": 14
           }
-        }
+        ]
       }
     }
   ]
@@ -142,12 +143,19 @@ The tool outputs detailed insights grouped by pipeline type:
 
 ### 📖 Key Metrics Explained
 
-- **🧩 Pipeline Type Clustering**: Groups pipelines by job signature (exact match). Pipeline types below the configured threshold (default 1%) are filtered out to reduce noise while preserving accurate critical path data.
-- **🔧 Jobs**: List of all jobs that appear in this pipeline type
+- **🧩 Pipeline Type Clustering**: Groups pipelines by job signature (exact match). Pipeline types below the configured threshold (default 1%) are filtered out to reduce noise.
 - **🔑 IDs**: GitLab pipeline IDs for all pipelines in this type (useful for drilling down)
-- **🎯 Critical Path**: The slowest execution path through the pipeline, considering both explicit job dependencies (`needs`) and stage-based execution. Shows each job's average duration and percentage contribution to total pipeline time. The `bottleneck` field identifies the slowest job on the critical path - the highest-impact optimization target.
-- **⚠️ Flaky Jobs**: Identifies unreliable jobs with flakiness score (% of runs needing retry), retry count, and total occurrences (only jobs appearing 2+ times, top 5 shown)
+- **⏱️ Average Duration**: Overall pipeline execution time (should match the slowest job's `avg_time_to_feedback_seconds`)
+- **💼 Job Metrics** (under `metrics.jobs`, sorted by `avg_time_to_feedback_seconds` descending):
+  - **`avg_duration_seconds`**: How long the job itself takes to run
+  - **`avg_time_to_feedback_seconds`**: Time from pipeline start to job completion (when developers get feedback)
+  - **`predecessors`**: Jobs that must complete before this one (on the critical path to this job), with their durations
+  - **`flakiness_score`**: Percentage of runs needing retry (0.0 if job never needed retries)
+  - **`retry_count`**: Number of times this job needed to be retried (0 if never retried)
+  - **`total_occurrences`**: Total number of times this job appeared across pipelines (0 if not tracked)
 - **✅ Success Rate**: Percentage of successful pipeline runs for each type
+
+**Finding optimization targets:** Jobs with the highest `avg_time_to_feedback_seconds` have the worst time-to-feedback and are the best candidates for optimization. Check their `predecessors` to see if you can parallelize or speed up dependencies. Jobs with high `flakiness_score` indicate reliability issues that need investigation.
 
 ## 🔮 Future Work
 

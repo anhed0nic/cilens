@@ -1,16 +1,11 @@
 use std::collections::HashMap;
 
-use super::core::{GitLabJob, GitLabPipeline};
-use crate::insights::{CriticalPath, CriticalPathJob};
+use super::types::{GitLabJob, GitLabPipeline};
+use crate::insights::{JobMetrics, PredecessorJob};
 
-pub fn calculate_critical_path(pipeline: &GitLabPipeline) -> Option<CriticalPath> {
+pub fn calculate_job_metrics(pipeline: &GitLabPipeline) -> Vec<JobMetrics> {
     if pipeline.jobs.is_empty() {
-        return None;
-    }
-
-    // Fast path: all jobs run in parallel (needs = Some([]))
-    if all_jobs_parallel(&pipeline.jobs) {
-        return parallel_jobs_path(pipeline);
+        return vec![];
     }
 
     // Build job lookup map
@@ -25,7 +20,7 @@ pub fn calculate_critical_path(pipeline: &GitLabPipeline) -> Option<CriticalPath
         .map(|(i, s)| (s.as_str(), i))
         .collect();
 
-    // Calculate when each job finishes and track the critical path
+    // Calculate when each job finishes and track the critical predecessor
     let mut finish_times = HashMap::new();
     let mut predecessors = HashMap::new();
 
@@ -39,40 +34,58 @@ pub fn calculate_critical_path(pipeline: &GitLabPipeline) -> Option<CriticalPath
         );
     }
 
-    // Find the job that finishes last
-    let (&last_job, &total_time) = finish_times
+    // Build metrics for all jobs
+    let mut metrics: Vec<JobMetrics> = job_map
         .iter()
-        .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())?;
+        .map(|(&name, job)| {
+            let avg_duration_seconds = job.duration;
+            let avg_time_to_feedback_seconds = *finish_times.get(name).unwrap_or(&0.0);
+            let predecessor_list = build_predecessor_list(name, &predecessors, &job_map);
 
-    // Reconstruct the critical path
-    let path = build_path(last_job, &predecessors);
+            JobMetrics {
+                name: name.to_string(),
+                avg_duration_seconds,
+                avg_time_to_feedback_seconds,
+                predecessors: predecessor_list,
+                flakiness_score: 0.0,
+                retry_count: 0,
+                total_occurrences: 0,
+            }
+        })
+        .collect();
 
-    // Build detailed critical path structure
-    build_critical_path(&path, &job_map, total_time)
+    // Sort by time to feedback descending (longest time-to-feedback first)
+    metrics.sort_by(|a, b| {
+        b.avg_time_to_feedback_seconds
+            .partial_cmp(&a.avg_time_to_feedback_seconds)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    metrics
 }
 
-fn all_jobs_parallel(jobs: &[GitLabJob]) -> bool {
-    jobs.iter()
-        .all(|j| matches!(j.needs, Some(ref v) if v.is_empty()))
-}
+fn build_predecessor_list(
+    job_name: &str,
+    predecessors: &HashMap<&str, &str>,
+    job_map: &HashMap<&str, &GitLabJob>,
+) -> Vec<PredecessorJob> {
+    let mut result = Vec::new();
+    let mut current = job_name;
 
-fn parallel_jobs_path(pipeline: &GitLabPipeline) -> Option<CriticalPath> {
-    let slowest = pipeline
-        .jobs
-        .iter()
-        .max_by(|a, b| a.duration.partial_cmp(&b.duration).unwrap())?;
+    // Walk back through the critical path for this job
+    while let Some(&pred) = predecessors.get(current) {
+        if let Some(job) = job_map.get(pred) {
+            result.push(PredecessorJob {
+                name: pred.to_string(),
+                avg_duration: job.duration,
+            });
+        }
+        current = pred;
+    }
 
-    let job = CriticalPathJob {
-        name: slowest.name.clone(),
-        avg_duration: slowest.duration,
-        percentage_of_path: 100.0,
-    };
-
-    Some(CriticalPath {
-        jobs: vec![job.clone()],
-        total_duration: slowest.duration,
-        bottleneck: Some(job),
-    })
+    // Reverse to show predecessors in execution order
+    result.reverse();
+    result
 }
 
 fn calculate_finish_time<'a>(
@@ -144,62 +157,5 @@ fn get_dependencies<'a>(
                 })
                 .collect()
         }
-    }
-}
-
-fn build_path(last_job: &str, predecessors: &HashMap<&str, &str>) -> Vec<String> {
-    let mut path = vec![last_job.to_string()];
-    let mut current = last_job;
-
-    while let Some(&pred) = predecessors.get(current) {
-        path.push(pred.to_string());
-        current = pred;
-    }
-
-    path.reverse();
-    path
-}
-
-fn build_critical_path(
-    path: &[String],
-    job_map: &HashMap<&str, &GitLabJob>,
-    total_duration: f64,
-) -> Option<CriticalPath> {
-    let jobs: Vec<CriticalPathJob> = path
-        .iter()
-        .filter_map(|name| {
-            let job = job_map.get(name.as_str())?;
-            Some(create_job_detail(name, job.duration, total_duration))
-        })
-        .collect();
-
-    let bottleneck = jobs
-        .iter()
-        .max_by(|a, b| {
-            a.avg_duration
-                .partial_cmp(&b.avg_duration)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        })
-        .cloned();
-
-    Some(CriticalPath {
-        jobs,
-        total_duration,
-        bottleneck,
-    })
-}
-
-fn create_job_detail(name: &str, duration: f64, total_duration: f64) -> CriticalPathJob {
-    #[allow(clippy::cast_precision_loss)]
-    let percentage = if total_duration > 0.0 {
-        (duration / total_duration) * 100.0
-    } else {
-        0.0
-    };
-
-    CriticalPathJob {
-        name: name.to_string(),
-        avg_duration: duration,
-        percentage_of_path: percentage,
     }
 }

@@ -38,7 +38,11 @@ enum Commands {
         #[arg(long, name = "ref")]
         ref_: Option<String>,
 
-        #[arg(long, default_value_t = 1.0, help = "Minimum percentage for pipeline type filtering (0-100)")]
+        #[arg(
+            long,
+            default_value_t = 1.0,
+            help = "Minimum percentage for pipeline type filtering (0-100)"
+        )]
         min_type_percentage: f64,
     },
 }

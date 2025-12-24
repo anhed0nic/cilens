@@ -1,5 +1,4 @@
 use chrono::{DateTime, Utc};
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -13,24 +12,20 @@ pub struct CIInsights {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CriticalPathJob {
+pub struct PredecessorJob {
     pub name: String,
     pub avg_duration: f64,
-    pub percentage_of_path: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CriticalPath {
-    pub jobs: Vec<CriticalPathJob>,
-    pub total_duration: f64,
-    pub bottleneck: Option<CriticalPathJob>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FlakyJobMetrics {
-    pub total_occurrences: usize,
-    pub retry_count: usize,
+pub struct JobMetrics {
+    pub name: String,
+    pub avg_duration_seconds: f64,
+    pub avg_time_to_feedback_seconds: f64,
+    pub predecessors: Vec<PredecessorJob>,
     pub flakiness_score: f64,
+    pub retry_count: usize,
+    pub total_occurrences: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -38,7 +33,6 @@ pub struct PipelineType {
     pub label: String,
     pub count: usize,
     pub percentage: f64,
-    pub jobs: Vec<String>,
     pub ids: Vec<String>,
     pub stages: Vec<String>,
     pub ref_patterns: Vec<String>,
@@ -53,6 +47,5 @@ pub struct TypeMetrics {
     pub failed_pipelines: usize,
     pub success_rate: f64,
     pub average_duration_seconds: f64,
-    pub critical_path: Option<CriticalPath>,
-    pub flaky_jobs: IndexMap<String, FlakyJobMetrics>,
+    pub jobs: Vec<JobMetrics>,
 }

@@ -1,7 +1,8 @@
 mod client;
-mod clustering;
-mod core;
-mod critical_path;
-mod metrics;
+mod job_analysis;
+mod pipeline_types;
+mod provider;
+mod type_metrics;
+mod types;
 
-pub use core::GitLabProvider;
+pub use provider::GitLabProvider;

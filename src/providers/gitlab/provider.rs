@@ -7,26 +7,7 @@ use crate::insights::CIInsights;
 use crate::providers::gitlab::client::pipelines::{fetch_pipeline_jobs, fetch_pipelines};
 use crate::providers::gitlab::client::GitLabClient;
 
-#[derive(Debug)]
-pub struct GitLabPipeline {
-    pub id: String,
-    pub ref_: String,
-    pub source: String,
-    pub status: String,
-    pub duration: usize,
-    pub stages: Vec<String>,
-    pub jobs: Vec<GitLabJob>,
-}
-
-#[derive(Debug)]
-pub struct GitLabJob {
-    pub name: String,
-    pub stage: String,
-    pub duration: f64,
-    pub status: String,
-    pub retried: bool,
-    pub needs: Option<Vec<String>>,
-}
+use super::types::{GitLabJob, GitLabPipeline};
 
 pub struct GitLabProvider {
     pub client: GitLabClient,
@@ -171,7 +152,8 @@ impl GitLabProvider {
             warn!("No pipelines found for project: {}", self.project_path);
         }
 
-        let pipeline_types = super::clustering::cluster_and_analyze(&pipelines, min_type_percentage);
+        let pipeline_types =
+            super::pipeline_types::group_pipeline_types(&pipelines, min_type_percentage);
 
         Ok(CIInsights {
             provider: "GitLab".to_string(),

@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use super::core::GitLabPipeline;
+use super::types::GitLabPipeline;
 use crate::insights::PipelineType;
 
-pub fn cluster_and_analyze(
+pub fn group_pipeline_types(
     pipelines: &[GitLabPipeline],
     min_type_percentage: f64,
 ) -> Vec<PipelineType> {
@@ -54,15 +54,7 @@ fn create_pipeline_type(
     }) {
         "Development Pipeline".to_string()
     } else {
-        format!(
-            "Pipeline: {}",
-            job_names
-                .iter()
-                .take(3)
-                .map(String::as_str)
-                .collect::<Vec<_>>()
-                .join(", ")
-        )
+        "Unknown Pipeline".to_string()
     };
 
     // Extract common characteristics
@@ -72,13 +64,12 @@ fn create_pipeline_type(
     let ids: Vec<String> = pipelines.iter().map(|p| p.id.clone()).collect();
 
     // Calculate metrics
-    let metrics = super::metrics::calculate_type_metrics(pipelines);
+    let metrics = super::type_metrics::calculate_type_metrics(pipelines);
 
     PipelineType {
         label,
         count,
         percentage,
-        jobs: job_names.to_vec(),
         ids,
         stages,
         ref_patterns,
@@ -90,40 +81,23 @@ fn create_pipeline_type(
 fn extract_characteristics(
     pipelines: &[&GitLabPipeline],
 ) -> (Vec<String>, Vec<String>, Vec<String>) {
-    let threshold = pipelines.len() / 10;
+    use std::collections::HashSet;
 
-    let stages = extract_common(pipelines, threshold * 2, |p| {
-        p.jobs.iter().map(|j| j.stage.as_str()).collect()
-    });
-
-    let ref_patterns = extract_common(pipelines, threshold, |p| vec![p.ref_.as_str()]);
-
-    let sources = extract_common(pipelines, threshold, |p| vec![p.source.as_str()]);
-
-    (stages, ref_patterns, sources)
-}
-
-fn extract_common<F>(pipelines: &[&GitLabPipeline], threshold: usize, extract: F) -> Vec<String>
-where
-    F: Fn(&GitLabPipeline) -> Vec<&str>,
-{
-    let mut counts: HashMap<&str, usize> = HashMap::new();
-
-    for pipeline in pipelines {
-        for value in extract(pipeline) {
-            *counts.entry(value).or_insert(0) += 1;
-        }
-    }
-
-    let mut items: Vec<(&str, usize)> = counts
-        .into_iter()
-        .filter(|(_, count)| *count >= threshold)
+    // Collect all unique stages
+    let stages: HashSet<String> = pipelines
+        .iter()
+        .flat_map(|p| p.jobs.iter().map(|j| j.stage.clone()))
         .collect();
 
-    items.sort_by(|a, b| b.1.cmp(&a.1));
-    items
-        .into_iter()
-        .take(5)
-        .map(|(name, _)| name.to_string())
-        .collect()
+    // Collect all unique refs
+    let ref_patterns: HashSet<String> = pipelines.iter().map(|p| p.ref_.clone()).collect();
+
+    // Collect all unique sources
+    let sources: HashSet<String> = pipelines.iter().map(|p| p.source.clone()).collect();
+
+    (
+        stages.into_iter().collect(),
+        ref_patterns.into_iter().collect(),
+        sources.into_iter().collect(),
+    )
 }
