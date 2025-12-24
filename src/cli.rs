@@ -37,6 +37,9 @@ enum Commands {
 
         #[arg(long, name = "ref")]
         ref_: Option<String>,
+
+        #[arg(long, default_value_t = 1.0, help = "Minimum percentage for pipeline type filtering (0-100)")]
+        min_type_percentage: f64,
     },
 }
 
@@ -48,6 +51,7 @@ impl Cli {
         project_path: &str,
         limit: usize,
         ref_: Option<&str>,
+        min_type_percentage: f64,
     ) -> Result<()> {
         info!("Collecting GitLab insights for project: {project_path}");
 
@@ -55,7 +59,9 @@ impl Cli {
 
         let provider = GitLabProvider::new(base_url, project_path.to_owned(), token)?;
 
-        let insights = provider.collect_insights(limit, ref_).await?;
+        let insights = provider
+            .collect_insights(limit, ref_, min_type_percentage)
+            .await?;
 
         let json_output = if self.pretty {
             serde_json::to_string_pretty(&insights)?
@@ -81,6 +87,7 @@ impl Cli {
                 project_path,
                 limit,
                 ref_,
+                min_type_percentage,
             } => {
                 self.execute_gitlab(
                     token.as_ref(),
@@ -88,6 +95,7 @@ impl Cli {
                     project_path,
                     *limit,
                     ref_.as_deref(),
+                    *min_type_percentage,
                 )
                 .await
             }

@@ -154,7 +154,12 @@ impl GitLabProvider {
             .collect()
     }
 
-    pub async fn collect_insights(&self, limit: usize, ref_: Option<&str>) -> Result<CIInsights> {
+    pub async fn collect_insights(
+        &self,
+        limit: usize,
+        ref_: Option<&str>,
+        min_type_percentage: f64,
+    ) -> Result<CIInsights> {
         info!(
             "Starting insights collection for project: {}",
             self.project_path
@@ -166,7 +171,7 @@ impl GitLabProvider {
             warn!("No pipelines found for project: {}", self.project_path);
         }
 
-        let pipeline_types = super::clustering::cluster_and_analyze(&pipelines);
+        let pipeline_types = super::clustering::cluster_and_analyze(&pipelines, min_type_percentage);
 
         Ok(CIInsights {
             provider: "GitLab".to_string(),

@@ -4,7 +4,7 @@ A Rust CLI tool for collecting and analyzing CI/CD insights from GitLab.
 
 ## ✨ Features
 
-- **🧩 Smart Pipeline Clustering** - Groups pipelines by job signature and automatically merges similar types (>80% similarity) to reduce noise
+- **🧩 Smart Pipeline Clustering** - Groups pipelines by job signature and filters out rare pipeline types (configurable threshold, default 1%)
 - **🎯 Accurate Critical Path Analysis** - Identifies the slowest execution path, correctly handling both explicit dependencies and stage-based execution
 - **⚠️ Flakiness Detection** - Identifies unreliable jobs that fail intermittently and need retries (top 5 flakiest jobs)
 - **📊 Success Rate Metrics** - Per-pipeline-type success rates and failure analysis
@@ -43,39 +43,27 @@ nix run github:dsalaza4/cilens -- --help
 export GITLAB_TOKEN="glpat-your-token"
 
 # Analyze a project
-cilens gitlab --project "group/project" --limit 20 --pretty
+cilens gitlab --project-path "group/project" --limit 20 --pretty
 ```
 
 ## 💡 Usage
 
 ```bash
 # Basic usage
-cilens gitlab --project "your/project"
+cilens gitlab --project-path "your/project"
 
 # Save to file
-cilens gitlab --project "your/project" --output insights.json --pretty
+cilens gitlab --project-path "your/project" --output insights.json --pretty
 
-# Filter by branch
-cilens gitlab --project "your/project" --branch main --limit 50
+# Filter by branch/ref
+cilens gitlab --project-path "your/project" --ref main --limit 50
 
 # Self-hosted GitLab
-cilens gitlab --url "https://gitlab.example.com" --project "your/project"
+cilens gitlab --base-url "https://gitlab.example.com" --project-path "your/project"
+
+# Custom filtering threshold (only show pipeline types that are ≥5% of total)
+cilens gitlab --project-path "your/project" --min-type-percentage 5.0
 ```
-
-## ⚙️ Options
-
-**Global:**
-
-- `-o, --output <FILE>` - Output file path (default: stdout)
-- `-p, --pretty` - Pretty print JSON
-
-**GitLab:**
-
-- `-t, --token <TOKEN>` - GitLab token (or use `GITLAB_TOKEN` env var)
-- `-u, --url <URL>` - GitLab instance URL (default: https://gitlab.com)
-- `-P, --project <PROJECT>` - Project ID or path (e.g., "group/project")
-- `-l, --limit <LIMIT>` - Number of pipelines to analyze (default: 20)
-- `-b, --branch <BRANCH>` - Filter by branch (optional)
 
 ## 📄 Output Format
 
@@ -154,8 +142,8 @@ The tool outputs detailed insights grouped by pipeline type:
 
 ### 📖 Key Metrics Explained
 
-- **🧩 Pipeline Type Clustering**: Groups pipelines by job signature (exact match), then merges types with >80% job similarity to reduce fragmentation. For example, pipelines differing by only 1-2 optional jobs are merged into a single type.
-- **🔧 Jobs**: Union of all jobs that appear in this pipeline type (when types are merged, shows all jobs from variants)
+- **🧩 Pipeline Type Clustering**: Groups pipelines by job signature (exact match). Pipeline types below the configured threshold (default 1%) are filtered out to reduce noise while preserving accurate critical path data.
+- **🔧 Jobs**: List of all jobs that appear in this pipeline type
 - **🔑 IDs**: GitLab pipeline IDs for all pipelines in this type (useful for drilling down)
 - **🎯 Critical Path**: The slowest execution path through the pipeline, considering both explicit job dependencies (`needs`) and stage-based execution. Shows each job's average duration and percentage contribution to total pipeline time. The `bottleneck` field identifies the slowest job on the critical path - the highest-impact optimization target.
 - **⚠️ Flaky Jobs**: Identifies unreliable jobs with flakiness score (% of runs needing retry), retry count, and total occurrences (only jobs appearing 2+ times, top 5 shown)
@@ -258,4 +246,3 @@ The following insights would provide additional value for teams analyzing their 
 ```
 
 **Value**: Shows if things are getting better or worse over time.
-
