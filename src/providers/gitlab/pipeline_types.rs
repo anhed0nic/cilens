@@ -5,7 +5,7 @@ use crate::insights::PipelineType;
 
 pub fn group_pipeline_types(
     pipelines: &[GitLabPipeline],
-    min_type_percentage: f64,
+    min_type_percentage: u8,
 ) -> Vec<PipelineType> {
     let mut clusters: HashMap<Vec<String>, Vec<&GitLabPipeline>> = HashMap::new();
 
@@ -27,7 +27,7 @@ pub fn group_pipeline_types(
         .collect();
 
     // Filter out pipeline types below threshold
-    pipeline_types.retain(|pt| pt.percentage >= min_type_percentage);
+    pipeline_types.retain(|pt| pt.percentage >= f64::from(min_type_percentage));
 
     pipeline_types.sort_by(|a, b| b.count.cmp(&a.count));
     pipeline_types

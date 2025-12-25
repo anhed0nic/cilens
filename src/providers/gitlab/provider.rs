@@ -139,7 +139,7 @@ impl GitLabProvider {
         &self,
         limit: usize,
         ref_: Option<&str>,
-        min_type_percentage: f64,
+        min_type_percentage: u8,
     ) -> Result<CIInsights> {
         info!(
             "Starting insights collection for project: {}",

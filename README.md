@@ -63,7 +63,7 @@ cilens gitlab --project-path "your/project" --ref main --limit 50
 cilens gitlab --base-url "https://gitlab.example.com" --project-path "your/project"
 
 # Custom filtering threshold (only show pipeline types that are ≥5% of total)
-cilens gitlab --project-path "your/project" --min-type-percentage 5.0
+cilens gitlab --project-path "your/project" --min-type-percentage 5
 ```
 
 ## 📄 Output Format

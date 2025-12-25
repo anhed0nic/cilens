@@ -1,5 +1,5 @@
 use anyhow::Result;
-use clap::{Parser, Subcommand};
+use clap::{value_parser, Parser, Subcommand};
 use log::info;
 use std::path::PathBuf;
 
@@ -40,10 +40,11 @@ enum Commands {
 
         #[arg(
             long,
-            default_value_t = 1.0,
-            help = "Minimum percentage for pipeline type filtering (0-100)"
+            default_value_t = 1,
+            help = "Minimum percentage for pipeline type filtering (0-100)",
+            value_parser = value_parser!(u8).range(0..=100),
         )]
-        min_type_percentage: f64,
+        min_type_percentage: u8,
     },
 }
 
@@ -55,7 +56,7 @@ impl Cli {
         project_path: &str,
         limit: usize,
         ref_: Option<&str>,
-        min_type_percentage: f64,
+        min_type_percentage: u8,
     ) -> Result<()> {
         info!("Collecting GitLab insights for project: {project_path}");
 
