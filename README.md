@@ -19,7 +19,7 @@ A Rust CLI tool for collecting and analyzing CI/CD insights from GitLab.
 Install the latest version for your platform:
 
 ```bash
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/dsalaza4/cilens/releases/download/v0.3.0/cilens-installer.sh | sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/dsalaza4/cilens/releases/download/v0.4.0/cilens-installer.sh | sh
 ```
 
 ### Nix

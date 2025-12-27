@@ -31,7 +31,7 @@ impl GitLabClient {
         ref_: Option<&str>,
         status: Option<fetch_pipelines::PipelineStatusEnum>,
     ) -> Result<Vec<fetch_pipelines::FetchPipelinesProjectPipelinesNodes>> {
-        const PAGE_SIZE: i64 = 50;
+        const PAGE_SIZE: usize = 50;
 
         let mut all_pipelines = Vec::new();
         let mut cursor: Option<String> = None;
@@ -43,7 +43,7 @@ impl GitLabClient {
             }
 
             #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
-            let fetch_count = std::cmp::min(remaining, PAGE_SIZE as usize) as i64;
+            let fetch_count = std::cmp::min(remaining, PAGE_SIZE) as i64;
 
             let variables = fetch_pipelines::Variables {
                 project_path: project_path.to_string(),

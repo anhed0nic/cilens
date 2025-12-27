@@ -8,8 +8,8 @@ use crate::insights::{
     JobCountWithLinks, JobMetrics, PipelineCountWithLinks, PredecessorJob, TypeMetrics,
 };
 
-fn cmp_f64(a: &f64, b: &f64) -> Ordering {
-    a.partial_cmp(b).unwrap_or(Ordering::Equal)
+fn cmp_f64(a: f64, b: f64) -> Ordering {
+    a.partial_cmp(&b).unwrap_or(Ordering::Equal)
 }
 
 /// Calculate P50, P95, P99 percentiles from a list of values
@@ -20,7 +20,7 @@ fn calculate_percentiles(values: &[f64]) -> (f64, f64, f64) {
     }
 
     let mut sorted = values.to_vec();
-    sorted.sort_by(cmp_f64);
+    sorted.sort_by(|a, b| cmp_f64(*a, *b));
 
     let len = sorted.len();
 
@@ -30,13 +30,14 @@ fn calculate_percentiles(values: &[f64]) -> (f64, f64, f64) {
         return (val, val, val);
     }
 
-    let p50_idx = (len as f64 * 0.50) as usize;
-    let p95_idx = (len as f64 * 0.95) as usize;
-    let p99_idx = (len as f64 * 0.99) as usize;
+    // Calculate percentile indices using integer arithmetic
+    let p50_idx = (len / 2).min(len - 1);
+    let p95_idx = (len * 95 / 100).min(len - 1);
+    let p99_idx = (len * 99 / 100).min(len - 1);
 
-    let p50 = sorted[p50_idx.min(len - 1)];
-    let p95 = sorted[p95_idx.min(len - 1)];
-    let p99 = sorted[p99_idx.min(len - 1)];
+    let p50 = sorted[p50_idx];
+    let p95 = sorted[p95_idx];
+    let p99 = sorted[p99_idx];
 
     (p50, p95, p99)
 }
@@ -49,14 +50,14 @@ pub fn calculate_type_metrics(
 ) -> TypeMetrics {
     let total_pipelines = pipelines.len();
 
-    let (successful, failed): (Vec<_>, Vec<_>) = pipelines
-        .iter()
-        .partition(|p| p.status == "success");
+    let (successful, failed): (Vec<_>, Vec<_>) =
+        pipelines.iter().partition(|p| p.status == "success");
 
     let successful_pipelines = to_pipeline_links(&successful, base_url, project_path);
     let failed_pipelines = to_pipeline_links(&failed, base_url, project_path);
 
     // Calculate duration percentiles from successful pipelines
+    #[allow(clippy::cast_precision_loss)]
     let durations: Vec<f64> = successful.iter().map(|p| p.duration as f64).collect();
     let (duration_p50, duration_p95, duration_p99) = calculate_percentiles(&durations);
 
@@ -122,7 +123,7 @@ fn aggregate_job_metrics(
             pipeline_metrics
                 .iter()
                 .map(|job| job.time_to_feedback_p50)
-                .min_by(cmp_f64)
+                .min_by(|a, b| cmp_f64(*a, *b))
         })
         .collect();
 
@@ -155,10 +156,10 @@ fn aggregate_job_metrics(
 
     let mut jobs: Vec<JobMetrics> = job_data
         .into_iter()
-        .map(|(name, data)| build_job_metrics(&name, data, &all_percentiles, &reliability_data))
+        .map(|(name, data)| build_job_metrics(&name, &data, &all_percentiles, &reliability_data))
         .collect();
 
-    jobs.sort_by(|a, b| cmp_f64(&b.time_to_feedback_p95, &a.time_to_feedback_p95));
+    jobs.sort_by(|a, b| cmp_f64(b.time_to_feedback_p95, a.time_to_feedback_p95));
 
     (jobs, time_to_feedback_percentiles)
 }
@@ -172,7 +173,7 @@ struct JobData {
 
 fn build_job_metrics(
     name: &str,
-    data: JobData,
+    data: &JobData,
     all_percentiles: &HashMap<String, (f64, f64, f64)>,
     reliability_data: &HashMap<String, JobReliabilityMetrics>,
 ) -> JobMetrics {
@@ -197,7 +198,13 @@ fn build_job_metrics(
                     links: r.failed_job_links.clone(),
                 },
             ),
-            None => (0, 0.0, Default::default(), 0.0, Default::default()),
+            None => (
+                0,
+                0.0,
+                JobCountWithLinks::default(),
+                0.0,
+                JobCountWithLinks::default(),
+            ),
         };
 
     JobMetrics {
@@ -236,6 +243,6 @@ fn aggregate_predecessors(
         })
         .collect();
 
-    result.sort_by(|a, b| cmp_f64(&b.duration_p50, &a.duration_p50));
+    result.sort_by(|a, b| cmp_f64(b.duration_p50, a.duration_p50));
     result
 }

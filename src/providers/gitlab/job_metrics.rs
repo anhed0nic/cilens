@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use super::types::{GitLabJob, GitLabPipeline};
-use crate::insights::{JobMetrics, PredecessorJob};
+use crate::insights::{JobCountWithLinks, JobMetrics, PredecessorJob};
 
 pub fn calculate_job_metrics(pipeline: &GitLabPipeline) -> Vec<JobMetrics> {
     if pipeline.jobs.is_empty() {
@@ -49,8 +49,8 @@ pub fn calculate_job_metrics(pipeline: &GitLabPipeline) -> Vec<JobMetrics> {
                 time_to_feedback_p99: time_to_feedback,
                 predecessors: predecessor_list,
                 flakiness_rate: 0.0,
-                flaky_retries: Default::default(),
-                failed_executions: Default::default(),
+                flaky_retries: JobCountWithLinks::default(),
+                failed_executions: JobCountWithLinks::default(),
                 failure_rate: 0.0,
                 total_executions: 0,
             }
