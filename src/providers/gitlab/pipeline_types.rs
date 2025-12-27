@@ -75,8 +75,12 @@ fn create_pipeline_type(
     let (stages, ref_patterns, sources) = extract_characteristics(pipelines);
 
     // Calculate metrics
-    let metrics =
-        super::type_metrics::calculate_type_metrics(pipelines, percentage, base_url, project_path);
+    let metrics = super::pipeline_metrics::calculate_type_metrics(
+        pipelines,
+        percentage,
+        base_url,
+        project_path,
+    );
 
     PipelineType {
         label,

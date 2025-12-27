@@ -1,9 +1,10 @@
 mod client;
-mod job_analysis;
+mod job_metrics;
+mod job_reliability;
+mod links;
+mod pipeline_metrics;
 mod pipeline_types;
 mod provider;
-mod type_metrics;
 mod types;
-mod url_utils;
 
 pub use provider::GitLabProvider;
