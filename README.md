@@ -80,13 +80,12 @@ The tool outputs detailed insights grouped by pipeline type:
   "pipeline_types": [
     {
       "label": "Test Pipeline",
-      "count": 5,
-      "percentage": 62.5,
-      "ids": ["gid://gitlab/Ci::Pipeline/123", "gid://gitlab/Ci::Pipeline/124"],
+      "pipeline_ids": ["gid://gitlab/Ci::Pipeline/123", "gid://gitlab/Ci::Pipeline/124"],
       "stages": ["test"],
       "ref_patterns": ["main"],
       "sources": ["push"],
       "metrics": {
+        "percentage": 62.5,
         "total_pipelines": 5,
         "successful_pipelines": 2,
         "failed_pipelines": 3,
@@ -108,8 +107,8 @@ The tool outputs detailed insights grouped by pipeline type:
               }
             ],
             "flakiness_score": 0.0,
-            "retry_count": 0,
-            "total_occurrences": 0
+            "flaky_retries": 0,
+            "total_executions": 5
           },
           {
             "name": "build",
@@ -122,17 +121,17 @@ The tool outputs detailed insights grouped by pipeline type:
               }
             ],
             "flakiness_score": 0.0,
-            "retry_count": 0,
-            "total_occurrences": 0
+            "flaky_retries": 0,
+            "total_executions": 5
           },
           {
             "name": "lint",
             "avg_duration_seconds": 45.0,
             "avg_time_to_feedback_seconds": 45.0,
             "predecessors": [],
-            "flakiness_score": 28.57,
-            "retry_count": 4,
-            "total_occurrences": 14
+            "flakiness_score": 44.44,
+            "flaky_retries": 4,
+            "total_executions": 9
           }
         ]
       }
@@ -144,15 +143,21 @@ The tool outputs detailed insights grouped by pipeline type:
 ### 📖 Key Metrics Explained
 
 - **🧩 Pipeline Type Clustering**: Groups pipelines by job signature (exact match). Pipeline types below the configured threshold (default 1%) are filtered out to reduce noise.
-- **🔑 IDs**: GitLab pipeline IDs for all pipelines in this type (useful for drilling down)
-- **⏱️ Average Duration**: Overall pipeline execution time (should match the slowest job's `avg_time_to_feedback_seconds`)
+- **🔑 Pipeline IDs**: GitLab pipeline IDs for all pipelines in this type (useful for drilling down)
+- **📊 Type Metrics** (under `metrics`):
+  - **`percentage`**: Percentage of total pipelines that belong to this type
+  - **`total_pipelines`**: Number of pipelines in this type
+  - **`successful_pipelines`**: Number of successful pipeline runs
+  - **`failed_pipelines`**: Number of failed pipeline runs
+  - **`success_rate`**: Percentage of successful pipeline runs
+  - **`average_duration_seconds`**: Average pipeline execution time
 - **💼 Job Metrics** (under `metrics.jobs`, sorted by `avg_time_to_feedback_seconds` descending):
   - **`avg_duration_seconds`**: How long the job itself takes to run
   - **`avg_time_to_feedback_seconds`**: Time from pipeline start to job completion (when developers get feedback)
   - **`predecessors`**: Jobs that must complete before this one (on the critical path to this job), with their durations
-  - **`flakiness_score`**: Percentage of runs needing retry (0.0 if job never needed retries)
-  - **`retry_count`**: Number of times this job needed to be retried (0 if never retried)
-  - **`total_occurrences`**: Total number of times this job appeared across pipelines (0 if not tracked)
+  - **`flakiness_score`**: Percentage of job executions that were retries (0.0 if job never needed retries)
+  - **`flaky_retries`**: Total number of retry attempts across all pipelines (only counts retries that eventually succeeded, 0 if never retried)
+  - **`total_executions`**: Total number of times this job executed across all pipelines, including both successful runs and retries
 - **✅ Success Rate**: Percentage of successful pipeline runs for each type
 
 **Finding optimization targets:** Jobs with the highest `avg_time_to_feedback_seconds` have the worst time-to-feedback and are the best candidates for optimization. Check their `predecessors` to see if you can parallelize or speed up dependencies. Jobs with high `flakiness_score` indicate reliability issues that need investigation.

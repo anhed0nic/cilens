@@ -27,9 +27,9 @@ pub fn group_pipeline_types(
         .collect();
 
     // Filter out pipeline types below threshold
-    pipeline_types.retain(|pt| pt.percentage >= f64::from(min_type_percentage));
+    pipeline_types.retain(|pt| pt.metrics.percentage >= f64::from(min_type_percentage));
 
-    pipeline_types.sort_by(|a, b| b.count.cmp(&a.count));
+    pipeline_types.sort_by(|a, b| b.metrics.total_pipelines.cmp(&a.metrics.total_pipelines));
     pipeline_types
 }
 
@@ -61,16 +61,14 @@ fn create_pipeline_type(
     let (stages, ref_patterns, sources) = extract_characteristics(pipelines);
 
     // Collect pipeline IDs
-    let ids: Vec<String> = pipelines.iter().map(|p| p.id.clone()).collect();
+    let pipeline_ids: Vec<String> = pipelines.iter().map(|p| p.id.clone()).collect();
 
     // Calculate metrics
-    let metrics = super::type_metrics::calculate_type_metrics(pipelines);
+    let metrics = super::type_metrics::calculate_type_metrics(pipelines, percentage);
 
     PipelineType {
         label,
-        count,
-        percentage,
-        ids,
+        pipeline_ids,
         stages,
         ref_patterns,
         sources,

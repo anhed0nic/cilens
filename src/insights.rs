@@ -24,16 +24,14 @@ pub struct JobMetrics {
     pub avg_time_to_feedback_seconds: f64,
     pub predecessors: Vec<PredecessorJob>,
     pub flakiness_score: f64,
-    pub retry_count: usize,
-    pub total_occurrences: usize,
+    pub flaky_retries: usize,
+    pub total_executions: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PipelineType {
     pub label: String,
-    pub count: usize,
-    pub percentage: f64,
-    pub ids: Vec<String>,
+    pub pipeline_ids: Vec<String>,
     pub stages: Vec<String>,
     pub ref_patterns: Vec<String>,
     pub sources: Vec<String>,
@@ -42,6 +40,7 @@ pub struct PipelineType {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TypeMetrics {
+    pub percentage: f64,
     pub total_pipelines: usize,
     pub successful_pipelines: usize,
     pub failed_pipelines: usize,
