@@ -8,11 +8,9 @@ pub fn calculate_job_metrics(pipeline: &GitLabPipeline) -> Vec<JobMetrics> {
         return vec![];
     }
 
-    // Build job lookup map
     let job_map: HashMap<&str, &GitLabJob> =
         pipeline.jobs.iter().map(|j| (j.name.as_str(), j)).collect();
 
-    // Build stage index for dependency resolution
     let stage_index: HashMap<&str, usize> = pipeline
         .stages
         .iter()
@@ -20,7 +18,6 @@ pub fn calculate_job_metrics(pipeline: &GitLabPipeline) -> Vec<JobMetrics> {
         .map(|(i, s)| (s.as_str(), i))
         .collect();
 
-    // Calculate when each job finishes and track the critical predecessor
     let mut finish_times = HashMap::new();
     let mut predecessors = HashMap::new();
 
@@ -34,7 +31,6 @@ pub fn calculate_job_metrics(pipeline: &GitLabPipeline) -> Vec<JobMetrics> {
         );
     }
 
-    // Build metrics for all jobs
     let mut metrics: Vec<JobMetrics> = job_map
         .iter()
         .map(|(&name, job)| {
@@ -54,7 +50,6 @@ pub fn calculate_job_metrics(pipeline: &GitLabPipeline) -> Vec<JobMetrics> {
         })
         .collect();
 
-    // Sort by time to feedback descending (longest time-to-feedback first)
     metrics.sort_by(|a, b| {
         b.avg_time_to_feedback_seconds
             .partial_cmp(&a.avg_time_to_feedback_seconds)
@@ -90,12 +85,10 @@ fn calculate_finish_time<'a>(
     finish_times: &mut HashMap<&'a str, f64>,
     predecessors: &mut HashMap<&'a str, &'a str>,
 ) -> f64 {
-    // Return cached result
     if let Some(&time) = finish_times.get(job_name) {
         return time;
     }
 
-    // Missing job (referenced in needs but doesn't exist)
     let Some(job) = job_map.get(job_name) else {
         finish_times.insert(job_name, 0.0);
         return 0.0;
@@ -103,13 +96,11 @@ fn calculate_finish_time<'a>(
 
     let deps = get_dependencies(job, job_map, stage_index);
 
-    // No dependencies - starts immediately
     if deps.is_empty() {
         finish_times.insert(job_name, job.duration);
         return job.duration;
     }
 
-    // Find slowest dependency (the one this job must wait for)
     let (slowest_dep, slowest_time) = deps
         .iter()
         .map(|&dep| {
@@ -119,11 +110,9 @@ fn calculate_finish_time<'a>(
         .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
         .unwrap_or(("", 0.0));
 
-    // This job finishes when slowest dependency finishes + this job's duration
     let finish_time = slowest_time + job.duration;
     finish_times.insert(job_name, finish_time);
 
-    // Track the critical predecessor for path reconstruction
     if slowest_time > 0.0 {
         predecessors.insert(job_name, slowest_dep);
     }

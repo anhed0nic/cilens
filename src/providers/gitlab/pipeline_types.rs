@@ -19,14 +19,11 @@ pub fn group_pipeline_types(
 ) -> Vec<PipelineType> {
     let total_pipelines = pipelines.len();
 
-    let clusters = pipelines.iter().fold(
-        HashMap::new(),
-        |mut acc: HashMap<Vec<String>, Vec<&GitLabPipeline>>, pipeline| {
-            let job_signature = extract_job_signature(pipeline);
-            acc.entry(job_signature).or_default().push(pipeline);
-            acc
-        },
-    );
+    let mut clusters: HashMap<Vec<String>, Vec<&GitLabPipeline>> = HashMap::new();
+    for pipeline in pipelines {
+        let job_signature = extract_job_signature(pipeline);
+        clusters.entry(job_signature).or_default().push(pipeline);
+    }
 
     let mut pipeline_types: Vec<PipelineType> = clusters
         .into_iter()
