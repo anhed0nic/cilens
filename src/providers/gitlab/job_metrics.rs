@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use super::types::{GitLabJob, GitLabPipeline};
-use crate::insights::{JobCountWithLinks, JobMetrics, PredecessorJob};
+use crate::insights::{JobMetrics, PredecessorJob};
 
 pub fn calculate_job_metrics(pipeline: &GitLabPipeline) -> Vec<JobMetrics> {
     if pipeline.jobs.is_empty() {
@@ -34,24 +34,23 @@ pub fn calculate_job_metrics(pipeline: &GitLabPipeline) -> Vec<JobMetrics> {
     let mut metrics: Vec<JobMetrics> = job_map
         .iter()
         .map(|(&name, job)| {
-            let avg_duration_seconds = job.duration;
-            let avg_time_to_feedback_seconds = *finish_times.get(name).unwrap_or(&0.0);
+            // For a single pipeline, all percentiles are the same (only 1 value)
+            let duration = job.duration;
+            let time_to_feedback = *finish_times.get(name).unwrap_or(&0.0);
             let predecessor_list = build_predecessor_list(name, &predecessors, &job_map);
 
             JobMetrics {
                 name: name.to_string(),
-                avg_duration_seconds,
-                avg_time_to_feedback_seconds,
+                duration_p50: duration,
+                duration_p95: duration,
+                duration_p99: duration,
+                time_to_feedback_p50: time_to_feedback,
+                time_to_feedback_p95: time_to_feedback,
+                time_to_feedback_p99: time_to_feedback,
                 predecessors: predecessor_list,
                 flakiness_rate: 0.0,
-                flaky_retries: JobCountWithLinks {
-                    count: 0,
-                    links: vec![],
-                },
-                failed_executions: JobCountWithLinks {
-                    count: 0,
-                    links: vec![],
-                },
+                flaky_retries: Default::default(),
+                failed_executions: Default::default(),
                 failure_rate: 0.0,
                 total_executions: 0,
             }
@@ -59,8 +58,8 @@ pub fn calculate_job_metrics(pipeline: &GitLabPipeline) -> Vec<JobMetrics> {
         .collect();
 
     metrics.sort_by(|a, b| {
-        b.avg_time_to_feedback_seconds
-            .partial_cmp(&a.avg_time_to_feedback_seconds)
+        b.time_to_feedback_p50
+            .partial_cmp(&a.time_to_feedback_p50)
             .unwrap_or(std::cmp::Ordering::Equal)
     });
 
@@ -72,20 +71,19 @@ fn build_predecessor_list(
     predecessors: &HashMap<&str, &str>,
     job_map: &HashMap<&str, &GitLabJob>,
 ) -> Vec<PredecessorJob> {
-    std::iter::successors(Some(job_name), |&current| {
+    let mut result: Vec<PredecessorJob> = std::iter::successors(Some(job_name), |&current| {
         predecessors.get(current).copied()
     })
     .skip(1)
     .filter_map(|name| {
         job_map.get(name).map(|job| PredecessorJob {
             name: name.to_string(),
-            avg_duration_seconds: job.duration,
+            duration_p50: job.duration,
         })
     })
-    .collect::<Vec<_>>()
-    .into_iter()
-    .rev()
-    .collect()
+    .collect();
+    result.reverse();
+    result
 }
 
 fn calculate_finish_time<'a>(

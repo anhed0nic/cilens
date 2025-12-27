@@ -14,16 +14,16 @@ pub struct CIInsights {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PredecessorJob {
     pub name: String,
-    pub avg_duration_seconds: f64,
+    pub duration_p50: f64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct PipelineCountWithLinks {
     pub count: usize,
     pub links: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct JobCountWithLinks {
     pub count: usize,
     pub links: Vec<String>,
@@ -32,8 +32,12 @@ pub struct JobCountWithLinks {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JobMetrics {
     pub name: String,
-    pub avg_duration_seconds: f64,
-    pub avg_time_to_feedback_seconds: f64,
+    pub duration_p50: f64,
+    pub duration_p95: f64,
+    pub duration_p99: f64,
+    pub time_to_feedback_p50: f64,
+    pub time_to_feedback_p95: f64,
+    pub time_to_feedback_p99: f64,
     pub predecessors: Vec<PredecessorJob>,
     pub flakiness_rate: f64,
     pub flaky_retries: JobCountWithLinks,
@@ -58,7 +62,11 @@ pub struct TypeMetrics {
     pub successful_pipelines: PipelineCountWithLinks,
     pub failed_pipelines: PipelineCountWithLinks,
     pub success_rate: f64,
-    pub avg_duration_seconds: f64,
-    pub avg_time_to_feedback_seconds: f64,
+    pub duration_p50: f64,
+    pub duration_p95: f64,
+    pub duration_p99: f64,
+    pub time_to_feedback_p50: f64,
+    pub time_to_feedback_p95: f64,
+    pub time_to_feedback_p99: f64,
     pub jobs: Vec<JobMetrics>,
 }

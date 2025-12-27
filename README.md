@@ -5,11 +5,12 @@ A Rust CLI tool for collecting and analyzing CI/CD insights from GitLab.
 ## ✨ Features
 
 - **🧩 Smart Pipeline Clustering** - Groups pipelines by job signature and filters out rare pipeline types (configurable threshold, default 1%)
+- **📊 Duration Percentiles (P50, P95, P99)** - Realistic performance expectations showing typical, planning, and worst-case scenarios instead of misleading averages
 - **⏱️ Per-Job Time-to-Feedback** - Shows how long each job takes to complete from pipeline start, revealing actual developer wait times
 - **🔍 Dependency Tracking** - Identifies which jobs block others, showing the critical path to each job
 - **⚠️ Flakiness Detection** - Identifies unreliable jobs that fail intermittently and need retries
-- **📊 Success Rate Metrics** - Per-pipeline-type success rates and failure analysis
-- **🎯 Optimization Insights** - Jobs sorted by total duration to quickly identify highest-impact optimization targets
+- **✅ Success Rate Metrics** - Per-pipeline-type success rates and failure analysis
+- **🎯 Optimization Insights** - Jobs sorted by P95 time-to-feedback to quickly identify highest-impact optimization targets
 
 ## 📦 Installation
 
@@ -95,21 +96,29 @@ The tool outputs detailed insights grouped by pipeline type:
           "links": ["https://gitlab.com/group/project/-/pipelines/125", "https://gitlab.com/group/project/-/pipelines/126", "https://gitlab.com/group/project/-/pipelines/127"]
         },
         "success_rate": 40.0,
-        "avg_duration_seconds": 648.5,
-        "avg_time_to_feedback_seconds": 45.0,
+        "duration_p50": 620.0,
+        "duration_p95": 850.0,
+        "duration_p99": 890.0,
+        "time_to_feedback_p50": 42.0,
+        "time_to_feedback_p95": 58.0,
+        "time_to_feedback_p99": 62.0,
         "jobs": [
           {
             "name": "integration-tests",
-            "avg_duration_seconds": 410.0,
-            "avg_time_to_feedback_seconds": 635.0,
+            "duration_p50": 400.0,
+            "duration_p95": 480.0,
+            "duration_p99": 520.0,
+            "time_to_feedback_p50": 610.0,
+            "time_to_feedback_p95": 720.0,
+            "time_to_feedback_p99": 780.0,
             "predecessors": [
               {
                 "name": "lint",
-                "avg_duration_seconds": 45.0
+                "duration_p50": 45.0
               },
               {
                 "name": "build",
-                "avg_duration_seconds": 180.0
+                "duration_p50": 180.0
               }
             ],
             "flakiness_rate": 0.0,
@@ -126,12 +135,16 @@ The tool outputs detailed insights grouped by pipeline type:
           },
           {
             "name": "build",
-            "avg_duration_seconds": 180.0,
-            "avg_time_to_feedback_seconds": 225.0,
+            "duration_p50": 175.0,
+            "duration_p95": 200.0,
+            "duration_p99": 210.0,
+            "time_to_feedback_p50": 220.0,
+            "time_to_feedback_p95": 250.0,
+            "time_to_feedback_p99": 265.0,
             "predecessors": [
               {
                 "name": "lint",
-                "avg_duration_seconds": 45.0
+                "duration_p50": 45.0
               }
             ],
             "flakiness_rate": 0.0,
@@ -148,8 +161,12 @@ The tool outputs detailed insights grouped by pipeline type:
           },
           {
             "name": "lint",
-            "avg_duration_seconds": 45.0,
-            "avg_time_to_feedback_seconds": 45.0,
+            "duration_p50": 42.0,
+            "duration_p95": 58.0,
+            "duration_p99": 62.0,
+            "time_to_feedback_p50": 42.0,
+            "time_to_feedback_p95": 58.0,
+            "time_to_feedback_p99": 62.0,
             "predecessors": [],
             "flakiness_rate": 44.44,
             "flaky_retries": {
@@ -179,12 +196,20 @@ The tool outputs detailed insights grouped by pipeline type:
   - **`successful_pipelines`**: Object with `count` and `links` - clickable GitLab URLs to investigate successful pipeline runs
   - **`failed_pipelines`**: Object with `count` and `links` - clickable GitLab URLs to drill down into failed pipeline runs
   - **`success_rate`**: Percentage of successful pipeline runs
-  - **`avg_duration_seconds`**: Average pipeline execution time
-  - **`avg_time_to_feedback_seconds`**: Average time until first feedback (from the fastest job)
-- **💼 Job Metrics** (under `metrics.jobs`, sorted by `avg_time_to_feedback_seconds` descending):
-  - **`avg_duration_seconds`**: How long the job itself takes to run
-  - **`avg_time_to_feedback_seconds`**: Time from pipeline start to job completion (when developers get feedback)
-  - **`predecessors`**: Jobs that must complete before this one (on the critical path to this job), with their durations
+  - **`duration_p50`**: Median pipeline execution time (50% of runs complete within this time)
+  - **`duration_p95`**: 95th percentile pipeline execution time (use for capacity planning)
+  - **`duration_p99`**: 99th percentile pipeline execution time (captures outliers)
+  - **`time_to_feedback_p50`**: Median time until first feedback (from the fastest job)
+  - **`time_to_feedback_p95`**: 95th percentile time to first feedback
+  - **`time_to_feedback_p99`**: 99th percentile time to first feedback
+- **💼 Job Metrics** (under `metrics.jobs`, sorted by `time_to_feedback_p95` descending):
+  - **`duration_p50`**: Median job execution time (typical duration)
+  - **`duration_p95`**: 95th percentile job duration (for planning SLAs)
+  - **`duration_p99`**: 99th percentile job duration (outlier detection)
+  - **`time_to_feedback_p50`**: Median time from pipeline start to job completion
+  - **`time_to_feedback_p95`**: 95th percentile time to feedback (planning metric)
+  - **`time_to_feedback_p99`**: 99th percentile time to feedback (worst-case)
+  - **`predecessors`**: Jobs that must complete before this one (on the critical path to this job), with their median durations
   - **`flakiness_rate`**: Percentage of job executions that were retries (0.0 if job never needed retries)
   - **`flaky_retries`**: Object with `count` and `links` - clickable GitLab URLs to investigate specific flaky job runs
   - **`failed_executions`**: Object with `count` and `links` - clickable GitLab URLs to investigate failed job runs
@@ -192,25 +217,15 @@ The tool outputs detailed insights grouped by pipeline type:
   - **`total_executions`**: Total number of times this job executed across all pipelines, including successful runs, flaky retries, and failures
 - **✅ Success Rate**: Percentage of successful pipeline runs for each type
 
-**Finding optimization targets:** Jobs with the highest `avg_time_to_feedback_seconds` have the worst time-to-feedback and are the best candidates for optimization. Check their `predecessors` to see if you can parallelize or speed up dependencies. Jobs with high `flakiness_rate` indicate intermittent reliability issues - click the `flaky_retries.links` to investigate specific flaky runs in GitLab. Jobs with high `failure_rate` are successfully catching bugs - click the `failed_executions.links` to see which runs failed and analyze the logs.
+**Understanding Percentiles:** Percentiles show the distribution of values rather than just the average, which can be misleading for skewed data. P50 (median) represents typical performance, P95 is better for capacity planning and SLAs (95% of runs complete within this time), and P99 helps identify outliers.
+
+**Finding optimization targets:** Jobs with the highest `time_to_feedback_p95` have the worst time-to-feedback and are the best candidates for optimization. Check their `predecessors` to see if you can parallelize or speed up dependencies. Jobs with high `flakiness_rate` indicate intermittent reliability issues - click the `flaky_retries.links` to investigate specific flaky runs in GitLab. Jobs with high `failure_rate` are successfully catching bugs - click the `failed_executions.links` to see which runs failed and analyze the logs.
 
 ## 🔮 Future Work
 
 The following insights would provide additional value for teams analyzing their CI/CD pipelines:
 
 ### 🚀 High-Impact Additions
-
-#### 📈 Duration Percentiles (P50, P95, P99)
-
-```json
-"duration_percentiles": {
-  "p50": 650.0,
-  "p95": 1800.0,
-  "p99": 2100.0
-}
-```
-
-**Value**: Shows realistic expectations vs average (which can be skewed by outliers).
 
 #### 💸 Waste Metrics
 
