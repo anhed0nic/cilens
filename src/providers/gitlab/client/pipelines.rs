@@ -30,7 +30,7 @@ impl GitLabClient {
         ref_: Option<&str>,
         status: Option<fetch_pipelines::PipelineStatusEnum>,
     ) -> Result<Vec<fetch_pipelines::FetchPipelinesProjectPipelinesNodes>> {
-        const PAGE_SIZE: i64 = 100;
+        const PAGE_SIZE: i64 = 50;
 
         let mut all_pipelines = Vec::new();
         let mut cursor: Option<String> = None;
@@ -143,7 +143,7 @@ impl GitLabClient {
         project_path: &str,
         pipeline_id: &str,
     ) -> Result<Vec<fetch_pipeline_jobs::FetchPipelineJobsProjectPipelineJobsNodes>> {
-        const PAGE_SIZE: i64 = 100;
+        const PAGE_SIZE: i64 = 50;
         let mut all_jobs = Vec::new();
         let mut cursor: Option<String> = None;
 

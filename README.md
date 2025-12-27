@@ -91,6 +91,7 @@ The tool outputs detailed insights grouped by pipeline type:
         "failed_pipelines": 3,
         "success_rate": 40.0,
         "avg_duration_seconds": 648.5,
+        "avg_time_to_feedback_seconds": 45.0,
         "jobs": [
           {
             "name": "integration-tests",
@@ -106,8 +107,10 @@ The tool outputs detailed insights grouped by pipeline type:
                 "avg_duration_seconds": 180.0
               }
             ],
-            "flakiness_score": 0.0,
+            "flakiness_rate": 0.0,
             "flaky_retries": 0,
+            "failed_executions": 0,
+            "failure_rate": 0.0,
             "total_executions": 5
           },
           {
@@ -120,8 +123,10 @@ The tool outputs detailed insights grouped by pipeline type:
                 "avg_duration_seconds": 45.0
               }
             ],
-            "flakiness_score": 0.0,
+            "flakiness_rate": 0.0,
             "flaky_retries": 0,
+            "failed_executions": 0,
+            "failure_rate": 0.0,
             "total_executions": 5
           },
           {
@@ -129,8 +134,10 @@ The tool outputs detailed insights grouped by pipeline type:
             "avg_duration_seconds": 45.0,
             "avg_time_to_feedback_seconds": 45.0,
             "predecessors": [],
-            "flakiness_score": 44.44,
+            "flakiness_rate": 44.44,
             "flaky_retries": 4,
+            "failed_executions": 0,
+            "failure_rate": 0.0,
             "total_executions": 9
           }
         ]
@@ -151,16 +158,19 @@ The tool outputs detailed insights grouped by pipeline type:
   - **`failed_pipelines`**: Number of failed pipeline runs
   - **`success_rate`**: Percentage of successful pipeline runs
   - **`avg_duration_seconds`**: Average pipeline execution time
+  - **`avg_time_to_feedback_seconds`**: Average time until first feedback (from the fastest job)
 - **💼 Job Metrics** (under `metrics.jobs`, sorted by `avg_time_to_feedback_seconds` descending):
   - **`avg_duration_seconds`**: How long the job itself takes to run
   - **`avg_time_to_feedback_seconds`**: Time from pipeline start to job completion (when developers get feedback)
   - **`predecessors`**: Jobs that must complete before this one (on the critical path to this job), with their durations
-  - **`flakiness_score`**: Percentage of job executions that were retries (0.0 if job never needed retries)
+  - **`flakiness_rate`**: Percentage of job executions that were retries (0.0 if job never needed retries)
   - **`flaky_retries`**: Total number of retry attempts across all pipelines (only counts retries that eventually succeeded, 0 if never retried)
-  - **`total_executions`**: Total number of times this job executed across all pipelines, including both successful runs and retries
+  - **`failed_executions`**: Number of times this job failed and stayed failed (did not eventually succeed, 0 if never failed)
+  - **`failure_rate`**: Percentage of executions that failed and stayed failed (indicates how often the job catches real bugs)
+  - **`total_executions`**: Total number of times this job executed across all pipelines, including successful runs, flaky retries, and failures
 - **✅ Success Rate**: Percentage of successful pipeline runs for each type
 
-**Finding optimization targets:** Jobs with the highest `avg_time_to_feedback_seconds` have the worst time-to-feedback and are the best candidates for optimization. Check their `predecessors` to see if you can parallelize or speed up dependencies. Jobs with high `flakiness_score` indicate reliability issues that need investigation.
+**Finding optimization targets:** Jobs with the highest `avg_time_to_feedback_seconds` have the worst time-to-feedback and are the best candidates for optimization. Check their `predecessors` to see if you can parallelize or speed up dependencies. Jobs with high `flakiness_rate` indicate intermittent reliability issues that need investigation. Jobs with high `failure_rate` are successfully catching bugs and stopping developers from committing mistakes.
 
 ## 🔮 Future Work
 
@@ -168,7 +178,7 @@ The following insights would provide additional value for teams analyzing their 
 
 ### 🚀 High-Impact Additions
 
-#### 📈 1. Duration Percentiles (P50, P95, P99)
+#### 📈 Duration Percentiles (P50, P95, P99)
 
 ```json
 "duration_percentiles": {
@@ -180,7 +190,7 @@ The following insights would provide additional value for teams analyzing their 
 
 **Value**: Shows realistic expectations vs average (which can be skewed by outliers).
 
-#### 💸 2. Waste Metrics
+#### 💸 Waste Metrics
 
 ```json
 "waste_metrics": {
@@ -192,21 +202,7 @@ The following insights would provide additional value for teams analyzing their 
 
 **Value**: Quantifies the business impact of failures and inefficiencies.
 
-#### ❌ 3. Failure Patterns
-
-```json
-"most_failing_jobs": [
-  {
-    "name": "e2e-tests",
-    "failure_rate": 35.5,
-    "total_runs": 120
-  }
-]
-```
-
-**Value**: Shows jobs with chronic failures (different from flakiness which indicates intermittent issues).
-
-#### ⚡ 4. Parallelization Efficiency
+#### ⚡ Parallelization Efficiency
 
 ```json
 "parallelization_efficiency": {
@@ -219,18 +215,7 @@ The following insights would provide additional value for teams analyzing their 
 
 **Value**: Reveals if you're effectively using parallel runners.
 
-#### ⏰ 5. Time-to-Feedback
-
-```json
-"feedback_metrics": {
-  "time_to_first_failure_avg": 180.0,
-  "time_to_first_failure_p95": 450.0
-}
-```
-
-**Value**: Critical for developer experience - faster feedback = faster fixes.
-
-#### 🎭 6. Stage-Level Insights
+#### 🎭 Stage-Level Insights
 
 ```json
 "stage_breakdown": [
@@ -246,7 +231,7 @@ The following insights would provide additional value for teams analyzing their 
 
 **Value**: Helps identify which stages are problematic or slow.
 
-#### 📊 7. Trend Indicators
+#### 📊 Trend Indicators
 
 (When analyzing multiple time windows)
 

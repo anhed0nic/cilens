@@ -23,8 +23,10 @@ pub struct JobMetrics {
     pub avg_duration_seconds: f64,
     pub avg_time_to_feedback_seconds: f64,
     pub predecessors: Vec<PredecessorJob>,
-    pub flakiness_score: f64,
+    pub flakiness_rate: f64,
     pub flaky_retries: usize,
+    pub failed_executions: usize,
+    pub failure_rate: f64,
     pub total_executions: usize,
 }
 
@@ -46,5 +48,6 @@ pub struct TypeMetrics {
     pub failed_pipelines: usize,
     pub success_rate: f64,
     pub avg_duration_seconds: f64,
+    pub avg_time_to_feedback_seconds: f64,
     pub jobs: Vec<JobMetrics>,
 }

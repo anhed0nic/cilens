@@ -43,8 +43,10 @@ pub fn calculate_job_metrics(pipeline: &GitLabPipeline) -> Vec<JobMetrics> {
                 avg_duration_seconds,
                 avg_time_to_feedback_seconds,
                 predecessors: predecessor_list,
-                flakiness_score: 0.0,
+                flakiness_rate: 0.0,
                 flaky_retries: 0,
+                failed_executions: 0,
+                failure_rate: 0.0,
                 total_executions: 0,
             }
         })
