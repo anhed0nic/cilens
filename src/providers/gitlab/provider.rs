@@ -7,6 +7,7 @@ use crate::insights::CIInsights;
 use crate::providers::gitlab::client::pipelines::{fetch_pipeline_jobs, fetch_pipelines};
 use crate::providers::gitlab::client::GitLabClient;
 
+use super::progress_bar::PhaseProgress;
 use super::types::{GitLabJob, GitLabPipeline};
 
 pub struct GitLabProvider {
@@ -157,6 +158,9 @@ impl GitLabProvider {
             self.project_path
         );
 
+        // Phase 1: Fetching pipelines
+        let progress = PhaseProgress::start_phase_1(limit);
+
         let pipelines = self
             .fetch_pipelines(limit, ref_, updated_after, updated_before)
             .await?;
@@ -164,6 +168,9 @@ impl GitLabProvider {
         if pipelines.is_empty() {
             warn!("No pipelines found for project: {}", self.project_path);
         }
+
+        // Phase 2: Fetching jobs
+        let progress = progress.finish_phase_1_start_phase_2(pipelines.len());
 
         // Extract base URL from graphql_url (e.g., https://gitlab.com/api/graphql -> https://gitlab.com)
         let base_url = self.client.graphql_url.origin().ascii_serialization();
@@ -175,13 +182,20 @@ impl GitLabProvider {
             &self.project_path,
         );
 
-        Ok(CIInsights {
+        // Phase 3: Processing data
+        let progress = progress.finish_phase_2_start_phase_3();
+
+        let insights = CIInsights {
             provider: "GitLab".to_string(),
             project: self.project_path.clone(),
             collected_at: Utc::now(),
             total_pipelines: pipelines.len(),
             total_pipeline_types: pipeline_types.len(),
             pipeline_types,
-        })
+        };
+
+        progress.finish_phase_3();
+
+        Ok(insights)
     }
 }

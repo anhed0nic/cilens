@@ -14,10 +14,21 @@ pub struct Cli {
     #[command(subcommand)]
     command: Commands,
 
-    #[arg(short, long, global = true, help = "Path to output file (prints to stdout if not specified)")]
+    #[arg(
+        short,
+        long,
+        global = true,
+        help = "Path to output file (prints to stdout if not specified)"
+    )]
     output: Option<PathBuf>,
 
-    #[arg(short, long, global = true, default_value_t = false, help = "Pretty-print JSON output")]
+    #[arg(
+        short,
+        long,
+        global = true,
+        default_value_t = false,
+        help = "Pretty-print JSON output"
+    )]
     pretty: bool,
 }
 
@@ -35,14 +46,22 @@ struct GitLabConfig<'a> {
 #[derive(Subcommand)]
 enum Commands {
     Gitlab {
-        #[arg(long, env = "GITLAB_TOKEN", help = "GitLab personal access token (or set GITLAB_TOKEN env var)")]
+        #[arg(help = "GitLab project path (e.g., 'group/project')")]
+        project_path: String,
+
+        #[arg(
+            long,
+            env = "GITLAB_TOKEN",
+            help = "GitLab personal access token (or set GITLAB_TOKEN env var)"
+        )]
         token: Option<String>,
 
-        #[arg(long, default_value = "https://gitlab.com", help = "GitLab instance base URL")]
+        #[arg(
+            long,
+            default_value = "https://gitlab.com",
+            help = "GitLab instance base URL"
+        )]
         base_url: String,
-
-        #[arg(long, help = "GitLab project path (e.g., 'group/project')")]
-        project_path: String,
 
         #[arg(
             long,
@@ -54,16 +73,10 @@ enum Commands {
         #[arg(long, name = "ref", help = "Filter pipelines by git ref (branch/tag)")]
         ref_: Option<String>,
 
-        #[arg(
-            long,
-            help = "Fetch pipelines since this date (YYYY-MM-DD)"
-        )]
+        #[arg(long, help = "Fetch pipelines since this date (YYYY-MM-DD)")]
         since: Option<NaiveDate>,
 
-        #[arg(
-            long,
-            help = "Fetch pipelines until this date (YYYY-MM-DD)"
-        )]
+        #[arg(long, help = "Fetch pipelines until this date (YYYY-MM-DD)")]
         until: Option<NaiveDate>,
 
         #[arg(
@@ -85,8 +98,12 @@ impl Cli {
         if config.since.is_some() || config.until.is_some() {
             info!(
                 "Date range: {} to {}",
-                config.since.map(|d| d.date_naive().to_string()).unwrap_or_else(|| "beginning".to_string()),
-                config.until.map(|d| d.date_naive().to_string()).unwrap_or_else(|| "now".to_string())
+                config
+                    .since
+                    .map_or_else(|| "beginning".to_string(), |d| d.date_naive().to_string()),
+                config
+                    .until
+                    .map_or_else(|| "now".to_string(), |d| d.date_naive().to_string())
             );
         }
 
@@ -133,18 +150,12 @@ impl Cli {
                 min_type_percentage,
             } => {
                 // Convert NaiveDate to DateTime<Utc> (start of day UTC)
-                let since_datetime = since.map(|date| {
-                    date.and_hms_opt(0, 0, 0)
-                        .expect("Valid time")
-                        .and_utc()
-                });
+                let since_datetime =
+                    since.map(|date| date.and_hms_opt(0, 0, 0).expect("Valid time").and_utc());
 
                 // For until, use end of day (23:59:59) to be inclusive
-                let until_datetime = until.map(|date| {
-                    date.and_hms_opt(23, 59, 59)
-                        .expect("Valid time")
-                        .and_utc()
-                });
+                let until_datetime =
+                    until.map(|date| date.and_hms_opt(23, 59, 59).expect("Valid time").and_utc());
 
                 let config = GitLabConfig {
                     token: token.as_ref(),

@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use graphql_client::GraphQLQuery;
 
-use super::core::GitLabClient;
+use super::core::{GitLabClient, PAGE_SIZE};
 use crate::error::{CILensError, Result};
 
 pub type JobID = String;
@@ -24,8 +24,6 @@ pub struct FetchPipelines;
     response_derives = "Debug,PartialEq,Clone"
 )]
 pub struct FetchPipelineJobs;
-
-const PAGE_SIZE: usize = 50;
 
 impl GitLabClient {
     #[allow(clippy::too_many_lines)]
@@ -65,15 +63,13 @@ impl GitLabClient {
             let data: fetch_pipelines::ResponseData =
                 self.execute_graphql_request(&request_body).await?;
 
-            let project = data.project.ok_or_else(|| {
-                CILensError::Config(format!("Project '{project_path}' not found"))
-            })?;
+            let project = data
+                .project
+                .ok_or_else(|| CILensError::ProjectNotFound(project_path.to_string()))?;
 
-            let pipelines = project.pipelines.ok_or_else(|| {
-                CILensError::Config(format!(
-                    "No pipeline data available for project '{project_path}'"
-                ))
-            })?;
+            let pipelines = project
+                .pipelines
+                .ok_or_else(|| CILensError::NoPipelineData(project_path.to_string()))?;
 
             all_pipelines.extend(pipelines.nodes.into_iter().flatten().flatten());
 
@@ -139,6 +135,7 @@ impl GitLabClient {
         let mut cursor: Option<String> = None;
 
         loop {
+            #[allow(clippy::cast_possible_wrap)]
             let variables = fetch_pipeline_jobs::Variables {
                 project_path: project_path.to_string(),
                 pipeline_id: pipeline_id.to_string(),
@@ -151,19 +148,17 @@ impl GitLabClient {
             let data: fetch_pipeline_jobs::ResponseData =
                 self.execute_graphql_request(&request_body).await?;
 
-            let project = data.project.ok_or_else(|| {
-                CILensError::Config(format!("Project '{project_path}' not found"))
-            })?;
+            let project = data
+                .project
+                .ok_or_else(|| CILensError::ProjectNotFound(project_path.to_string()))?;
 
-            let pipeline = project.pipeline.ok_or_else(|| {
-                CILensError::Config(format!("Pipeline '{pipeline_id}' not found"))
-            })?;
+            let pipeline = project
+                .pipeline
+                .ok_or_else(|| CILensError::PipelineNotFound(pipeline_id.to_string()))?;
 
-            let jobs = pipeline.jobs.ok_or_else(|| {
-                CILensError::Config(format!(
-                    "No job data available for pipeline '{pipeline_id}'"
-                ))
-            })?;
+            let jobs = pipeline
+                .jobs
+                .ok_or_else(|| CILensError::NoJobData(pipeline_id.to_string()))?;
 
             all_jobs.extend(jobs.nodes.into_iter().flatten().flatten());
 

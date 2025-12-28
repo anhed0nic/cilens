@@ -5,6 +5,30 @@ pub enum CILensError {
     #[error("Invalid configuration: {0}")]
     Config(String),
 
+    #[error("Project '{0}' not found")]
+    ProjectNotFound(String),
+
+    #[error("Pipeline '{0}' not found")]
+    PipelineNotFound(String),
+
+    #[error("No pipeline data available for project '{0}'")]
+    NoPipelineData(String),
+
+    #[error("No job data available for pipeline '{0}'")]
+    NoJobData(String),
+
+    #[error("GraphQL errors in {query_type}: {errors}")]
+    GraphQLError { query_type: String, errors: String },
+
+    #[error("GitLab API returned status {status}: {message}")]
+    ApiError { status: u16, message: String },
+
+    #[error("GitLab API error (status {status}) after {retries} retries. Please wait a few minutes and try again, or reduce --limit.")]
+    ApiErrorAfterRetries { status: u16, retries: u32 },
+
+    #[error("GraphQL response contained no data")]
+    NoResponseData,
+
     #[error("Network error: {0}")]
     Network(#[from] reqwest::Error),
 

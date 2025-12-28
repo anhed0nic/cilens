@@ -12,6 +12,7 @@ use crate::error::{CILensError, Result};
 const MAX_RETRIES: u32 = 30;
 const RETRY_DELAY_SECONDS: u64 = 10;
 const MAX_CONCURRENT_REQUESTS: usize = 500;
+pub(super) const PAGE_SIZE: usize = 50;
 
 pub struct GitLabClient {
     pub client: Client,
@@ -59,13 +60,15 @@ impl GitLabClient {
     where
         T: serde::de::DeserializeOwned,
     {
+        // Acquire semaphore permit to limit concurrent requests (one permit per logical request)
+        let _permit = self.semaphore.acquire().await.unwrap();
+
         let mut retry_count = 0;
         loop {
-            // Acquire semaphore permit to limit concurrent requests
-            let _permit = self.semaphore.acquire().await.unwrap();
-
             let request = self.auth_request(
-                self.client.post(self.graphql_url.clone()).json(request_body)
+                self.client
+                    .post(self.graphql_url.clone())
+                    .json(request_body),
             );
 
             let response = match request.send().await {
@@ -93,9 +96,10 @@ impl GitLabClient {
 
             if status == 429 || status.is_server_error() {
                 if retry_count >= MAX_RETRIES {
-                    return Err(CILensError::Config(
-                        format!("GitLab API error (status {status}) after {MAX_RETRIES} retries. Please wait a few minutes and try again, or reduce --limit.")
-                    ));
+                    return Err(CILensError::ApiErrorAfterRetries {
+                        status: status.as_u16(),
+                        retries: MAX_RETRIES,
+                    });
                 }
 
                 warn!(
@@ -114,24 +118,30 @@ impl GitLabClient {
                     .text()
                     .await
                     .unwrap_or_else(|_| "Unable to read error response".to_string());
-                return Err(CILensError::Config(format!(
-                    "GitLab API returned status {status}: {error_text}"
-                )));
+                return Err(CILensError::ApiError {
+                    status: status.as_u16(),
+                    message: error_text,
+                });
             }
 
             // Parse GraphQL response and check for errors
             let response_body: GraphQLResponse<T> = response.json().await?;
 
             if let Some(errors) = response_body.errors {
-                return Err(CILensError::Config(format!(
-                    "GraphQL errors: {}",
-                    errors.iter().map(|e| &e.message).cloned().collect::<Vec<_>>().join(", ")
-                )));
+                return Err(CILensError::GraphQLError {
+                    query_type: std::any::type_name::<T>().to_string(),
+                    errors: errors
+                        .iter()
+                        .map(|e| &e.message)
+                        .cloned()
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                });
             }
 
             return response_body
                 .data
-                .ok_or_else(|| CILensError::Config("GraphQL response contained no data".to_string()));
+                .ok_or_else(|| CILensError::NoResponseData);
         }
     }
 }

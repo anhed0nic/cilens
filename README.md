@@ -45,32 +45,32 @@ nix run github:dsalaza4/cilens -- --help
 export GITLAB_TOKEN="glpat-your-token"
 
 # Analyze a project (fetches up to 500 most recent pipelines)
-cilens gitlab --project-path "group/project" --pretty
+cilens gitlab group/project --pretty
 ```
 
 ## 💡 Usage
 
 ```bash
 # Basic usage (fetches up to 500 most recent pipelines)
-cilens gitlab --project-path "your/project"
+cilens gitlab your/project
 
 # Fetch fewer pipelines for faster analysis
-cilens gitlab --project-path "your/project" --limit 100
+cilens gitlab your/project --limit 100
 
 # Save to file
-cilens gitlab --project-path "your/project" --output insights.json --pretty
+cilens gitlab your/project --output insights.json --pretty
 
 # Filter by date range (optional)
-cilens gitlab --project-path "your/project" --since 2025-01-01 --until 2025-01-31
+cilens gitlab your/project --since 2025-01-01 --until 2025-01-31
 
 # Filter by branch/ref
-cilens gitlab --project-path "your/project" --ref main
+cilens gitlab your/project --ref main
 
 # Self-hosted GitLab
-cilens gitlab --base-url "https://gitlab.example.com" --project-path "your/project"
+cilens gitlab your/project --base-url "https://gitlab.example.com"
 
 # Custom filtering threshold (only show pipeline types that are ≥5% of total)
-cilens gitlab --project-path "your/project" --min-type-percentage 5
+cilens gitlab your/project --min-type-percentage 5
 ```
 
 ### 📅 Date Filtering
