@@ -14,7 +14,7 @@ impl PhaseProgress {
                 .template("{spinner:.green} {msg}")
                 .unwrap(),
         );
-        pb.set_message(format!("Phase 1/3: Fetching pipelines (0/{limit})"));
+        pb.set_message(format!("Phase 1/3: Fetching pipelines (limit: {limit})..."));
         pb.enable_steady_tick(std::time::Duration::from_millis(100));
 
         Self { pb }
@@ -31,7 +31,7 @@ impl PhaseProgress {
                 .template("{spinner:.green} {msg}")
                 .unwrap(),
         );
-        pb.set_message("Phase 2/3: Fetching jobs for pipelines (0 jobs fetched)");
+        pb.set_message("Phase 2/3: Fetching jobs for pipelines...");
         pb.enable_steady_tick(std::time::Duration::from_millis(100));
 
         Self { pb }
