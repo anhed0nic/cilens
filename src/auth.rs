@@ -1,3 +1,8 @@
+/// Authentication token for CI provider API access.
+///
+/// Wraps a token string with secure handling:
+/// - Debug implementation redacts the value to prevent accidental logging
+/// - Provides safe conversion from string types
 pub struct Token(String);
 
 impl From<&str> for Token {
@@ -7,6 +12,9 @@ impl From<&str> for Token {
 }
 
 impl Token {
+    /// Returns the token as a string slice.
+    ///
+    /// Use this method when passing the token to API clients.
     pub fn as_str(&self) -> &str {
         &self.0
     }

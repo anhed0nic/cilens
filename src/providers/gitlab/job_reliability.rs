@@ -130,6 +130,7 @@ fn is_job_failed(jobs: &[&GitLabJob]) -> bool {
 }
 
 #[cfg(test)]
+#[allow(clippy::similar_names, clippy::float_cmp)]
 mod tests {
     use super::*;
 
@@ -184,9 +185,8 @@ mod tests {
         fn handles_fractional_percentages() {
             let result = calculate_rate(1, 3);
             assert!(
-                (result - 33.333333).abs() < 0.001,
-                "Should handle fractional percentages, got {}",
-                result
+                (result - 33.333_333).abs() < 0.001,
+                "Should handle fractional percentages, got {result}",
             );
         }
 

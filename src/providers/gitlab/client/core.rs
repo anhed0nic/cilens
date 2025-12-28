@@ -14,14 +14,36 @@ const RETRY_DELAY_SECONDS: u64 = 10;
 const MAX_CONCURRENT_REQUESTS: usize = 500;
 pub(super) const PAGE_SIZE: usize = 50;
 
+/// GitLab GraphQL API client with built-in retry logic and concurrency control.
+///
+/// Handles authentication, rate limiting, and automatic retries for transient failures.
+/// Limits concurrent requests to 500 to avoid overwhelming the GitLab API.
 pub struct GitLabClient {
+    /// HTTP client for making requests
     pub client: Client,
+    /// GitLab GraphQL API endpoint URL
     pub graphql_url: Url,
+    /// Optional authentication token
     pub token: Option<Token>,
+    /// Semaphore to limit concurrent requests
     semaphore: Arc<Semaphore>,
 }
 
 impl GitLabClient {
+    /// Creates a new GitLab client for the specified instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `base_url` - GitLab instance base URL (e.g., <https://gitlab.com>)
+    /// * `token` - Optional authentication token for API access
+    ///
+    /// # Returns
+    ///
+    /// Configured client ready to make GraphQL requests.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the base URL is invalid or cannot be parsed.
     pub fn new(base_url: &str, token: Option<Token>) -> Result<Self> {
         let client = Client::builder()
             .user_agent("CILens/0.1.0")
@@ -43,6 +65,15 @@ impl GitLabClient {
         })
     }
 
+    /// Adds authentication header to a request if a token is configured.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - Request builder to add authentication to
+    ///
+    /// # Returns
+    ///
+    /// Request builder with Bearer token header added (if token is present).
     pub fn auth_request(&self, request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
         if let Some(token) = &self.token {
             request.bearer_auth(token.as_str())

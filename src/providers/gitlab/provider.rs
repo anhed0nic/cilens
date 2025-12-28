@@ -10,12 +10,28 @@ use crate::providers::gitlab::client::GitLabClient;
 use super::progress_bar::PhaseProgress;
 use super::types::{GitLabJob, GitLabPipeline};
 
+/// GitLab CI/CD insights provider.
+///
+/// Fetches pipeline and job data from GitLab's GraphQL API and calculates
+/// comprehensive metrics including percentiles, success rates, flakiness detection,
+/// and time-to-feedback analysis.
 pub struct GitLabProvider {
     pub client: GitLabClient,
     pub project_path: String,
 }
 
 impl GitLabProvider {
+    /// Creates a new GitLab provider for the specified project.
+    ///
+    /// # Arguments
+    ///
+    /// * `base_url` - GitLab instance base URL (e.g., <https://gitlab.com>)
+    /// * `project_path` - Project path (e.g., "group/project")
+    /// * `token` - Optional authentication token
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the GraphQL endpoint URL cannot be constructed.
     pub fn new(base_url: &str, project_path: String, token: Option<Token>) -> Result<Self> {
         let client = GitLabClient::new(base_url, token)?;
 
@@ -145,6 +161,36 @@ impl GitLabProvider {
             .collect()
     }
 
+    /// Collects comprehensive CI/CD insights for the configured project.
+    ///
+    /// Fetches pipelines and their jobs from GitLab, then analyzes them to calculate
+    /// metrics including duration percentiles, success rates, flakiness detection,
+    /// time-to-feedback, and job dependencies.
+    ///
+    /// Progress is displayed in three phases:
+    /// 1. Fetching pipelines (SUCCESS and FAILED statuses)
+    /// 2. Fetching jobs for each pipeline
+    /// 3. Processing insights (grouping, calculating metrics)
+    ///
+    /// # Arguments
+    ///
+    /// * `limit` - Maximum number of pipelines to fetch (fetches SUCCESS and FAILED concurrently until limit reached)
+    /// * `ref_` - Optional git ref filter (e.g., "main", "develop")
+    /// * `updated_after` - Optional start date for pipeline filtering
+    /// * `updated_before` - Optional end date for pipeline filtering
+    /// * `min_type_percentage` - Minimum percentage (0-100) for pipeline type inclusion
+    ///
+    /// # Returns
+    ///
+    /// Returns `CIInsights` containing pipeline types grouped by job signature,
+    /// with comprehensive metrics for each type and job.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - GraphQL API requests fail after 30 retries
+    /// - Project or pipeline data is not found
+    /// - Network or parsing errors occur
     pub async fn collect_insights(
         &self,
         limit: usize,

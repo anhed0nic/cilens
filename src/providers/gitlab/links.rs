@@ -1,8 +1,36 @@
+/// Converts a GitLab pipeline GID to a clickable web URL.
+///
+/// Extracts the numeric ID from a GraphQL Global ID (GID) and constructs
+/// a direct link to the pipeline's web page in GitLab.
+///
+/// # Arguments
+///
+/// * `base_url` - GitLab instance base URL (e.g., <https://gitlab.com>)
+/// * `project_path` - Project path (e.g., "group/project")
+/// * `gid` - GraphQL Global ID (e.g., <gid://gitlab/Ci::Pipeline/123>)
+///
+/// # Returns
+///
+/// Clickable URL to the pipeline (e.g., <https://gitlab.com/group/project/-/pipelines/123>)
 pub fn pipeline_id_to_url(base_url: &str, project_path: &str, gid: &str) -> String {
     let id = extract_numeric_id(gid);
     format!("{base_url}/{project_path}/-/pipelines/{id}")
 }
 
+/// Converts a GitLab job GID to a clickable web URL.
+///
+/// Extracts the numeric ID from a GraphQL Global ID (GID) and constructs
+/// a direct link to the job's web page in GitLab.
+///
+/// # Arguments
+///
+/// * `base_url` - GitLab instance base URL (e.g., <https://gitlab.com>)
+/// * `project_path` - Project path (e.g., "group/project")
+/// * `gid` - GraphQL Global ID (e.g., <gid://gitlab/Ci::Job/456>)
+///
+/// # Returns
+///
+/// Clickable URL to the job (e.g., <https://gitlab.com/group/project/-/jobs/456>)
 pub fn job_id_to_url(base_url: &str, project_path: &str, gid: &str) -> String {
     let id = extract_numeric_id(gid);
     format!("{base_url}/{project_path}/-/jobs/{id}")

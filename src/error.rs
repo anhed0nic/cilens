@@ -1,5 +1,8 @@
 use thiserror::Error;
 
+/// Error types for `CILens` operations.
+///
+/// Covers configuration errors, API failures, network issues, and data parsing problems.
 #[derive(Error, Debug)]
 pub enum CILensError {
     #[error("Invalid configuration: {0}")]
@@ -39,4 +42,5 @@ pub enum CILensError {
     Io(#[from] std::io::Error),
 }
 
+/// Result type alias using `CILensError` as the error type.
 pub type Result<T> = std::result::Result<T, CILensError>;

@@ -4,6 +4,24 @@ use super::pipeline_metrics::cmp_f64;
 use super::types::{GitLabJob, GitLabPipeline};
 use crate::insights::{JobCountWithLinks, JobMetrics, PredecessorJob};
 
+/// Calculates metrics for all jobs in a single pipeline.
+///
+/// Analyzes job dependencies (explicit via `needs` and implicit via stages) to compute
+/// time-to-feedback for each job. Time-to-feedback represents when a job completes
+/// relative to the pipeline start, accounting for dependencies that must complete first.
+///
+/// # Arguments
+///
+/// * `pipeline` - Pipeline containing jobs to analyze
+///
+/// # Returns
+///
+/// Vector of `JobMetrics` sorted by time-to-feedback (slowest first), with each job's
+/// duration, time-to-feedback, and predecessor list. For a single pipeline, all percentiles
+/// (P50/P95/P99) are identical since there's only one data point per job.
+///
+/// Reliability metrics (`flakiness_rate`, `failure_rate`, etc.) are set to zero/empty as they
+/// require analysis across multiple pipeline executions.
 pub fn calculate_job_metrics(pipeline: &GitLabPipeline) -> Vec<JobMetrics> {
     if pipeline.jobs.is_empty() {
         return vec![];
@@ -150,6 +168,7 @@ fn get_dependencies<'a>(
 }
 
 #[cfg(test)]
+#[allow(clippy::float_cmp)]
 mod tests {
     use super::*;
 
@@ -337,7 +356,7 @@ mod tests {
             // Assert: Finish time should equal job duration (starts at 0)
             assert_eq!(time, 10.0);
             assert_eq!(finish_times.get("job1"), Some(&10.0));
-            assert!(predecessors.get("job1").is_none());
+            assert!(!predecessors.contains_key("job1"));
         }
 
         #[test]

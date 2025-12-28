@@ -42,6 +42,24 @@ fn calculate_percentiles(values: &[f64]) -> (f64, f64, f64) {
     (p50, p95, p99)
 }
 
+/// Calculates comprehensive metrics for a pipeline type.
+///
+/// Analyzes a group of pipelines to compute success rates, duration percentiles,
+/// time-to-feedback metrics, and per-job statistics. Only successful pipelines
+/// are used for duration and time-to-feedback calculations.
+///
+/// # Arguments
+///
+/// * `pipelines` - Collection of pipelines in this type (all with the same job signature)
+/// * `percentage` - Percentage of total pipelines this type represents (0-100)
+/// * `base_url` - GitLab instance base URL for generating clickable pipeline/job URLs
+/// * `project_path` - Project path for generating URLs
+///
+/// # Returns
+///
+/// `TypeMetrics` containing success rate, duration percentiles (P50/P95/P99),
+/// time-to-feedback percentiles, and detailed per-job metrics with clickable URLs
+/// to failed pipelines and flaky job runs.
 pub fn calculate_type_metrics(
     pipelines: &[&GitLabPipeline],
     percentage: f64,
@@ -248,9 +266,11 @@ fn aggregate_predecessors(
 }
 
 #[cfg(test)]
+#[allow(clippy::cast_lossless)]
 mod tests {
     use super::*;
 
+    #[allow(clippy::float_cmp)]
     mod calculate_percentiles {
         use super::*;
 
@@ -364,11 +384,11 @@ mod tests {
 
         #[test]
         fn handles_dataset_with_mixed_magnitude_values() {
-            let values = vec![0.001, 1.0, 100.0, 10000.0, 1000000.0];
+            let values = vec![0.001, 1.0, 100.0, 10000.0, 1_000_000.0];
             let (p50, p95, p99) = calculate_percentiles(&values);
             assert_eq!(p50, 100.0);
-            assert_eq!(p95, 1000000.0);
-            assert_eq!(p99, 1000000.0);
+            assert_eq!(p95, 1_000_000.0);
+            assert_eq!(p99, 1_000_000.0);
         }
 
         #[test]
@@ -432,6 +452,7 @@ mod tests {
         }
     }
 
+    #[allow(clippy::float_cmp)]
     mod calculate_success_rate {
         use super::*;
 
@@ -488,7 +509,7 @@ mod tests {
         fn calculates_fractional_percentages() {
             let rate = calculate_success_rate(1, 3);
             // 1/3 * 100 = 33.333...
-            assert!((rate - 33.333333333333336).abs() < 1e-10);
+            assert!((rate - 33.333_333_333_333_336).abs() < 1e-10);
         }
 
         #[test]
@@ -524,6 +545,7 @@ mod tests {
         }
     }
 
+    #[allow(clippy::float_cmp)]
     mod cmp_f64 {
         use super::*;
         use std::cmp::Ordering;
@@ -637,9 +659,9 @@ mod tests {
 
         #[test]
         fn handles_decimal_precision() {
-            assert_eq!(cmp_f64(1.123456789, 1.123456789), Ordering::Equal);
-            assert_eq!(cmp_f64(1.123456788, 1.123456789), Ordering::Less);
-            assert_eq!(cmp_f64(1.123456790, 1.123456789), Ordering::Greater);
+            assert_eq!(cmp_f64(1.123_456_789, 1.123_456_789), Ordering::Equal);
+            assert_eq!(cmp_f64(1.123_456_788, 1.123_456_789), Ordering::Less);
+            assert_eq!(cmp_f64(1.123_456_790, 1.123_456_789), Ordering::Greater);
         }
     }
 }
