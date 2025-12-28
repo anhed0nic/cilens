@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use graphql_client::GraphQLQuery;
 
 use super::core::GitLabClient;
@@ -5,6 +6,7 @@ use crate::error::{CILensError, Result};
 
 pub type JobID = String;
 pub type CiPipelineID = String;
+pub type Time = DateTime<Utc>;
 
 #[derive(GraphQLQuery)]
 #[graphql(
@@ -23,16 +25,19 @@ pub struct FetchPipelines;
 )]
 pub struct FetchPipelineJobs;
 
+const PAGE_SIZE: usize = 50;
+
 impl GitLabClient {
+    #[allow(clippy::too_many_lines)]
     async fn fetch_pipelines_with_status(
         &self,
         project_path: &str,
         limit: usize,
         ref_: Option<&str>,
         status: Option<fetch_pipelines::PipelineStatusEnum>,
+        updated_after: Option<DateTime<Utc>>,
+        updated_before: Option<DateTime<Utc>>,
     ) -> Result<Vec<fetch_pipelines::FetchPipelinesProjectPipelinesNodes>> {
-        const PAGE_SIZE: usize = 50;
-
         let mut all_pipelines = Vec::new();
         let mut cursor: Option<String> = None;
 
@@ -49,34 +54,16 @@ impl GitLabClient {
                 project_path: project_path.to_string(),
                 first: fetch_count,
                 after: cursor.clone(),
-                ref_: ref_.map(std::string::ToString::to_string),
+                ref_: ref_.map(ToString::to_string),
                 status: status.clone(),
+                updated_after,
+                updated_before,
             };
 
             let request_body = FetchPipelines::build_query(variables);
 
-            let request = self
-                .client
-                .post(self.graphql_url.clone())
-                .json(&request_body);
-            let request = self.auth_request(request);
-
-            let response = request.send().await?;
-            let response_body: graphql_client::Response<fetch_pipelines::ResponseData> =
-                response.json().await?;
-
-            if let Some(errors) = response_body.errors {
-                let error_messages: Vec<String> =
-                    errors.iter().map(|e| e.message.clone()).collect();
-                let joined_errors = error_messages.join(", ");
-                return Err(CILensError::Config(format!(
-                    "GraphQL errors: {joined_errors}"
-                )));
-            }
-
-            let data = response_body.data.ok_or_else(|| {
-                CILensError::Config("GraphQL response contained no data".to_string())
-            })?;
+            let data: fetch_pipelines::ResponseData =
+                self.execute_graphql_request(&request_body).await?;
 
             let project = data.project.ok_or_else(|| {
                 CILensError::Config(format!("Project '{project_path}' not found"))
@@ -90,15 +77,12 @@ impl GitLabClient {
 
             all_pipelines.extend(pipelines.nodes.into_iter().flatten().flatten());
 
-            if !pipelines.page_info.has_next_page || all_pipelines.len() >= limit {
+            // Stop if we have enough pipelines or no more pages
+            if all_pipelines.len() >= limit || !pipelines.page_info.has_next_page {
                 break;
             }
 
             cursor = pipelines.page_info.end_cursor;
-
-            if cursor.is_none() {
-                break;
-            }
         }
 
         all_pipelines.truncate(limit);
@@ -111,6 +95,8 @@ impl GitLabClient {
         project_path: &str,
         limit: usize,
         ref_: Option<&str>,
+        updated_after: Option<DateTime<Utc>>,
+        updated_before: Option<DateTime<Utc>>,
     ) -> Result<Vec<fetch_pipelines::FetchPipelinesProjectPipelinesNodes>> {
         // Fetch SUCCESS and FAILED pipelines in parallel
         let half_limit = limit / 2;
@@ -121,12 +107,16 @@ impl GitLabClient {
                 half_limit,
                 ref_,
                 Some(fetch_pipelines::PipelineStatusEnum::SUCCESS),
+                updated_after,
+                updated_before,
             ),
             self.fetch_pipelines_with_status(
                 project_path,
                 half_limit,
                 ref_,
                 Some(fetch_pipelines::PipelineStatusEnum::FAILED),
+                updated_after,
+                updated_before,
             ),
         );
 
@@ -139,12 +129,12 @@ impl GitLabClient {
         Ok(all_pipelines)
     }
 
+    #[allow(clippy::too_many_lines)]
     pub async fn fetch_pipeline_jobs(
         &self,
         project_path: &str,
         pipeline_id: &str,
     ) -> Result<Vec<fetch_pipeline_jobs::FetchPipelineJobsProjectPipelineJobsNodes>> {
-        const PAGE_SIZE: i64 = 50;
         let mut all_jobs = Vec::new();
         let mut cursor: Option<String> = None;
 
@@ -152,34 +142,14 @@ impl GitLabClient {
             let variables = fetch_pipeline_jobs::Variables {
                 project_path: project_path.to_string(),
                 pipeline_id: pipeline_id.to_string(),
-                first: PAGE_SIZE,
+                first: PAGE_SIZE as i64,
                 after: cursor.clone(),
             };
 
             let request_body = FetchPipelineJobs::build_query(variables);
 
-            let request = self
-                .client
-                .post(self.graphql_url.clone())
-                .json(&request_body);
-            let request = self.auth_request(request);
-
-            let response = request.send().await?;
-            let response_body: graphql_client::Response<fetch_pipeline_jobs::ResponseData> =
-                response.json().await?;
-
-            if let Some(errors) = response_body.errors {
-                let error_messages: Vec<String> =
-                    errors.iter().map(|e| e.message.clone()).collect();
-                let joined_errors = error_messages.join(", ");
-                return Err(CILensError::Config(format!(
-                    "GraphQL errors: {joined_errors}"
-                )));
-            }
-
-            let data = response_body.data.ok_or_else(|| {
-                CILensError::Config("GraphQL response contained no data".to_string())
-            })?;
+            let data: fetch_pipeline_jobs::ResponseData =
+                self.execute_graphql_request(&request_body).await?;
 
             let project = data.project.ok_or_else(|| {
                 CILensError::Config(format!("Project '{project_path}' not found"))
@@ -202,10 +172,6 @@ impl GitLabClient {
             }
 
             cursor = jobs.page_info.end_cursor;
-
-            if cursor.is_none() {
-                break;
-            }
         }
 
         Ok(all_jobs)

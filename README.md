@@ -44,21 +44,27 @@ nix run github:dsalaza4/cilens -- --help
 
 export GITLAB_TOKEN="glpat-your-token"
 
-# Analyze a project
-cilens gitlab --project-path "group/project" --limit 20 --pretty
+# Analyze a project (fetches up to 500 most recent pipelines)
+cilens gitlab --project-path "group/project" --pretty
 ```
 
 ## 💡 Usage
 
 ```bash
-# Basic usage
+# Basic usage (fetches up to 500 most recent pipelines)
 cilens gitlab --project-path "your/project"
+
+# Fetch fewer pipelines for faster analysis
+cilens gitlab --project-path "your/project" --limit 100
 
 # Save to file
 cilens gitlab --project-path "your/project" --output insights.json --pretty
 
+# Filter by date range (optional)
+cilens gitlab --project-path "your/project" --since 2025-01-01 --until 2025-01-31
+
 # Filter by branch/ref
-cilens gitlab --project-path "your/project" --ref main --limit 50
+cilens gitlab --project-path "your/project" --ref main
 
 # Self-hosted GitLab
 cilens gitlab --base-url "https://gitlab.example.com" --project-path "your/project"
@@ -66,6 +72,26 @@ cilens gitlab --base-url "https://gitlab.example.com" --project-path "your/proje
 # Custom filtering threshold (only show pipeline types that are ≥5% of total)
 cilens gitlab --project-path "your/project" --min-type-percentage 5
 ```
+
+### 📅 Date Filtering
+
+CILens fetches the most recent pipelines up to the specified limit (default: 500). You can optionally filter by date:
+
+- `--since YYYY-MM-DD`: Start date (optional)
+- `--until YYYY-MM-DD`: End date (optional)
+- `--limit N`: Maximum pipelines to fetch (default: 500)
+
+**Important:** Date filtering is done server-side by GitLab's API. On very large projects with thousands of pipelines, date-filtered queries may timeout due to GitLab API limitations. If this occurs, use `--limit` instead of relying on date filters.
+
+### 🔄 Reliability & Performance
+
+CILens is designed to handle large-scale pipeline fetches reliably:
+
+- **Automatic Retry**: Network errors, rate limits (429), and server errors (5xx) are automatically retried up to 30 times with 10-second delays
+- **Concurrency Limiting**: Maximum 500 concurrent requests to prevent overwhelming GitLab's API
+- **Graceful Degradation**: Transient failures are logged and retried transparently
+
+This makes it suitable for fetching thousands of pipelines even from busy GitLab instances.
 
 ## 📄 Output Format
 

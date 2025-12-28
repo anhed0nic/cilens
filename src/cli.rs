@@ -1,4 +1,5 @@
 use anyhow::Result;
+use chrono::{DateTime, NaiveDate, Utc};
 use clap::{value_parser, Parser, Subcommand};
 use log::info;
 use std::path::PathBuf;
@@ -13,30 +14,57 @@ pub struct Cli {
     #[command(subcommand)]
     command: Commands,
 
-    #[arg(short, long, global = true)]
+    #[arg(short, long, global = true, help = "Path to output file (prints to stdout if not specified)")]
     output: Option<PathBuf>,
 
-    #[arg(short, long, global = true, default_value_t = false)]
+    #[arg(short, long, global = true, default_value_t = false, help = "Pretty-print JSON output")]
     pretty: bool,
+}
+
+struct GitLabConfig<'a> {
+    token: Option<&'a String>,
+    base_url: &'a str,
+    project_path: &'a str,
+    limit: usize,
+    ref_: Option<&'a str>,
+    since: Option<DateTime<Utc>>,
+    until: Option<DateTime<Utc>>,
+    min_type_percentage: u8,
 }
 
 #[derive(Subcommand)]
 enum Commands {
     Gitlab {
-        #[arg(long, env = "GITLAB_TOKEN")]
+        #[arg(long, env = "GITLAB_TOKEN", help = "GitLab personal access token (or set GITLAB_TOKEN env var)")]
         token: Option<String>,
 
-        #[arg(long, default_value = "https://gitlab.com")]
+        #[arg(long, default_value = "https://gitlab.com", help = "GitLab instance base URL")]
         base_url: String,
 
-        #[arg(long)]
+        #[arg(long, help = "GitLab project path (e.g., 'group/project')")]
         project_path: String,
 
-        #[arg(long, default_value_t = 20)]
+        #[arg(
+            long,
+            default_value_t = 500,
+            help = "Maximum number of pipelines to fetch"
+        )]
         limit: usize,
 
-        #[arg(long, name = "ref")]
+        #[arg(long, name = "ref", help = "Filter pipelines by git ref (branch/tag)")]
         ref_: Option<String>,
+
+        #[arg(
+            long,
+            help = "Fetch pipelines since this date (YYYY-MM-DD)"
+        )]
+        since: Option<NaiveDate>,
+
+        #[arg(
+            long,
+            help = "Fetch pipelines until this date (YYYY-MM-DD)"
+        )]
+        until: Option<NaiveDate>,
 
         #[arg(
             long,
@@ -49,23 +77,31 @@ enum Commands {
 }
 
 impl Cli {
-    async fn execute_gitlab(
-        &self,
-        token: Option<&String>,
-        base_url: &str,
-        project_path: &str,
-        limit: usize,
-        ref_: Option<&str>,
-        min_type_percentage: u8,
-    ) -> Result<()> {
-        info!("Collecting GitLab insights for project: {project_path}");
+    async fn execute_gitlab(&self, config: GitLabConfig<'_>) -> Result<()> {
+        info!(
+            "Collecting GitLab insights for project: {}",
+            config.project_path
+        );
+        if config.since.is_some() || config.until.is_some() {
+            info!(
+                "Date range: {} to {}",
+                config.since.map(|d| d.date_naive().to_string()).unwrap_or_else(|| "beginning".to_string()),
+                config.until.map(|d| d.date_naive().to_string()).unwrap_or_else(|| "now".to_string())
+            );
+        }
 
-        let token = token.map(|t| Token::from(t.as_str()));
+        let token = config.token.map(|t| Token::from(t.as_str()));
 
-        let provider = GitLabProvider::new(base_url, project_path.to_owned(), token)?;
+        let provider = GitLabProvider::new(config.base_url, config.project_path.to_owned(), token)?;
 
         let insights = provider
-            .collect_insights(limit, ref_, min_type_percentage)
+            .collect_insights(
+                config.limit,
+                config.ref_,
+                config.since,
+                config.until,
+                config.min_type_percentage,
+            )
             .await?;
 
         let json_output = if self.pretty {
@@ -92,17 +128,36 @@ impl Cli {
                 project_path,
                 limit,
                 ref_,
+                since,
+                until,
                 min_type_percentage,
             } => {
-                self.execute_gitlab(
-                    token.as_ref(),
+                // Convert NaiveDate to DateTime<Utc> (start of day UTC)
+                let since_datetime = since.map(|date| {
+                    date.and_hms_opt(0, 0, 0)
+                        .expect("Valid time")
+                        .and_utc()
+                });
+
+                // For until, use end of day (23:59:59) to be inclusive
+                let until_datetime = until.map(|date| {
+                    date.and_hms_opt(23, 59, 59)
+                        .expect("Valid time")
+                        .and_utc()
+                });
+
+                let config = GitLabConfig {
+                    token: token.as_ref(),
                     base_url,
                     project_path,
-                    *limit,
-                    ref_.as_deref(),
-                    *min_type_percentage,
-                )
-                .await
+                    limit: *limit,
+                    ref_: ref_.as_deref(),
+                    since: since_datetime,
+                    until: until_datetime,
+                    min_type_percentage: *min_type_percentage,
+                };
+
+                self.execute_gitlab(config).await
             }
         }
     }

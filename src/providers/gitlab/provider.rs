@@ -1,4 +1,4 @@
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use log::{info, warn};
 
 use crate::auth::Token;
@@ -28,12 +28,20 @@ impl GitLabProvider {
         &self,
         limit: usize,
         ref_: Option<&str>,
+        updated_after: Option<DateTime<Utc>>,
+        updated_before: Option<DateTime<Utc>>,
     ) -> Result<Vec<GitLabPipeline>> {
         info!("Fetching up to {limit} pipelines...");
 
         let pipeline_nodes = self
             .client
-            .fetch_pipelines(&self.project_path, limit, ref_)
+            .fetch_pipelines(
+                &self.project_path,
+                limit,
+                ref_,
+                updated_after,
+                updated_before,
+            )
             .await?;
 
         info!(
@@ -140,6 +148,8 @@ impl GitLabProvider {
         &self,
         limit: usize,
         ref_: Option<&str>,
+        updated_after: Option<DateTime<Utc>>,
+        updated_before: Option<DateTime<Utc>>,
         min_type_percentage: u8,
     ) -> Result<CIInsights> {
         info!(
@@ -147,7 +157,9 @@ impl GitLabProvider {
             self.project_path
         );
 
-        let pipelines = self.fetch_pipelines(limit, ref_).await?;
+        let pipelines = self
+            .fetch_pipelines(limit, ref_, updated_after, updated_before)
+            .await?;
 
         if pipelines.is_empty() {
             warn!("No pipelines found for project: {}", self.project_path);

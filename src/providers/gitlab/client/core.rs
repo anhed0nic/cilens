@@ -1,13 +1,23 @@
+use graphql_client::Response as GraphQLResponse;
+use log::warn;
 use reqwest::Client;
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::Semaphore;
 use url::Url;
 
 use crate::auth::Token;
 use crate::error::{CILensError, Result};
 
+const MAX_RETRIES: u32 = 30;
+const RETRY_DELAY_SECONDS: u64 = 10;
+const MAX_CONCURRENT_REQUESTS: usize = 500;
+
 pub struct GitLabClient {
     pub client: Client,
     pub graphql_url: Url,
     pub token: Option<Token>,
+    semaphore: Arc<Semaphore>,
 }
 
 impl GitLabClient {
@@ -28,6 +38,7 @@ impl GitLabClient {
             client,
             graphql_url,
             token,
+            semaphore: Arc::new(Semaphore::new(MAX_CONCURRENT_REQUESTS)),
         })
     }
 
@@ -36,6 +47,91 @@ impl GitLabClient {
             request.bearer_auth(token.as_str())
         } else {
             request
+        }
+    }
+
+    /// Execute a GraphQL request with automatic retry on network errors and rate limits
+    /// Returns the data from the GraphQL response after checking for errors
+    pub(super) async fn execute_graphql_request<T>(
+        &self,
+        request_body: &impl serde::Serialize,
+    ) -> Result<T>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        let mut retry_count = 0;
+        loop {
+            // Acquire semaphore permit to limit concurrent requests
+            let _permit = self.semaphore.acquire().await.unwrap();
+
+            let request = self.auth_request(
+                self.client.post(self.graphql_url.clone()).json(request_body)
+            );
+
+            let response = match request.send().await {
+                Ok(resp) => resp,
+                Err(e) if e.is_connect() || e.is_timeout() || e.is_request() => {
+                    if retry_count >= MAX_RETRIES {
+                        return Err(e.into());
+                    }
+                    warn!(
+                        "Network error ({}), retrying in {}s ({}/{})...",
+                        e,
+                        RETRY_DELAY_SECONDS,
+                        retry_count + 1,
+                        MAX_RETRIES
+                    );
+                    tokio::time::sleep(Duration::from_secs(RETRY_DELAY_SECONDS)).await;
+                    retry_count += 1;
+                    continue;
+                }
+                Err(e) => return Err(e.into()),
+            };
+
+            // Check for rate limiting or other HTTP errors before parsing JSON
+            let status = response.status();
+
+            if status == 429 || status.is_server_error() {
+                if retry_count >= MAX_RETRIES {
+                    return Err(CILensError::Config(
+                        format!("GitLab API error (status {status}) after {MAX_RETRIES} retries. Please wait a few minutes and try again, or reduce --limit.")
+                    ));
+                }
+
+                warn!(
+                    "GitLab API error (status {status}). Waiting {RETRY_DELAY_SECONDS} seconds before retry {}/{}...",
+                    retry_count + 1,
+                    MAX_RETRIES
+                );
+
+                tokio::time::sleep(Duration::from_secs(RETRY_DELAY_SECONDS)).await;
+                retry_count += 1;
+                continue;
+            }
+
+            if !status.is_success() {
+                let error_text = response
+                    .text()
+                    .await
+                    .unwrap_or_else(|_| "Unable to read error response".to_string());
+                return Err(CILensError::Config(format!(
+                    "GitLab API returned status {status}: {error_text}"
+                )));
+            }
+
+            // Parse GraphQL response and check for errors
+            let response_body: GraphQLResponse<T> = response.json().await?;
+
+            if let Some(errors) = response_body.errors {
+                return Err(CILensError::Config(format!(
+                    "GraphQL errors: {}",
+                    errors.iter().map(|e| &e.message).cloned().collect::<Vec<_>>().join(", ")
+                )));
+            }
+
+            return response_body
+                .data
+                .ok_or_else(|| CILensError::Config("GraphQL response contained no data".to_string()));
         }
     }
 }

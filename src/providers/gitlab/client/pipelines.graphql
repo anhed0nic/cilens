@@ -4,9 +4,18 @@ query FetchPipelines(
   $after: String
   $ref: String
   $status: PipelineStatusEnum
+  $updatedAfter: Time
+  $updatedBefore: Time
 ) {
   project(fullPath: $projectPath) {
-    pipelines(first: $first, after: $after, ref: $ref, status: $status) {
+    pipelines(
+      first: $first
+      after: $after
+      ref: $ref
+      status: $status
+      updatedAfter: $updatedAfter
+      updatedBefore: $updatedBefore
+    ) {
       pageInfo {
         hasNextPage
         endCursor
