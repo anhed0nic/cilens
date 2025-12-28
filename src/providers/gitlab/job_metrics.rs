@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use super::pipeline_metrics::cmp_f64;
 use super::types::{GitLabJob, GitLabPipeline};
 use crate::insights::{JobCountWithLinks, JobMetrics, PredecessorJob};
 
@@ -57,11 +58,7 @@ pub fn calculate_job_metrics(pipeline: &GitLabPipeline) -> Vec<JobMetrics> {
         })
         .collect();
 
-    metrics.sort_by(|a, b| {
-        b.time_to_feedback_p50
-            .partial_cmp(&a.time_to_feedback_p50)
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
+    metrics.sort_by(|a, b| cmp_f64(b.time_to_feedback_p50, a.time_to_feedback_p50));
 
     metrics
 }
@@ -115,7 +112,7 @@ fn calculate_finish_time<'a>(
             let time = calculate_finish_time(dep, job_map, stage_index, finish_times, predecessors);
             (dep, time)
         })
-        .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+        .max_by(|a, b| cmp_f64(a.1, b.1))
         .unwrap_or(("", 0.0));
 
     let finish_time = slowest_time + job.duration;

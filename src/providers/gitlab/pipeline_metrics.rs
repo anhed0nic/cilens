@@ -8,7 +8,7 @@ use crate::insights::{
     JobCountWithLinks, JobMetrics, PipelineCountWithLinks, PredecessorJob, TypeMetrics,
 };
 
-fn cmp_f64(a: f64, b: f64) -> Ordering {
+pub(super) fn cmp_f64(a: f64, b: f64) -> Ordering {
     a.partial_cmp(&b).unwrap_or(Ordering::Equal)
 }
 

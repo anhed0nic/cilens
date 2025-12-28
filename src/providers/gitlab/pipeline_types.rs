@@ -56,25 +56,8 @@ fn create_pipeline_type(
     #[allow(clippy::cast_precision_loss)]
     let percentage = (count as f64 / total_pipelines.max(1) as f64) * 100.0;
 
-    // Generate label from job names
-    let label = if job_names.iter().any(|j| j.to_lowercase().contains("prod")) {
-        "Production Pipeline".to_string()
-    } else if job_names.iter().any(|j| {
-        let lower = j.to_lowercase();
-        lower.contains("staging")
-            || lower.contains("dev")
-            || lower.contains("test")
-            || lower.contains("qa")
-    }) {
-        "Development Pipeline".to_string()
-    } else {
-        "Unknown Pipeline".to_string()
-    };
-
-    // Extract common characteristics
+    let label = generate_label(job_names);
     let (stages, ref_patterns, sources) = extract_characteristics(pipelines);
-
-    // Calculate metrics
     let metrics = super::pipeline_metrics::calculate_type_metrics(
         pipelines,
         percentage,
@@ -91,26 +74,45 @@ fn create_pipeline_type(
     }
 }
 
+fn generate_label(job_names: &[String]) -> String {
+    let has_keyword = |keywords: &[&str]| {
+        job_names.iter().any(|name| {
+            let lower = name.to_lowercase();
+            keywords.iter().any(|kw| lower.contains(kw))
+        })
+    };
+
+    if has_keyword(&["prod"]) {
+        "Production Pipeline".to_string()
+    } else if has_keyword(&["staging", "dev", "test", "qa"]) {
+        "Development Pipeline".to_string()
+    } else {
+        "Unknown Pipeline".to_string()
+    }
+}
+
 fn extract_characteristics(
     pipelines: &[&GitLabPipeline],
 ) -> (Vec<String>, Vec<String>, Vec<String>) {
     use std::collections::HashSet;
 
-    // Collect all unique stages
-    let stages: HashSet<String> = pipelines
-        .iter()
-        .flat_map(|p| p.jobs.iter().map(|j| j.stage.clone()))
-        .collect();
+    let collect_unique = |iter: Vec<String>| -> Vec<String> {
+        iter.into_iter()
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect()
+    };
 
-    // Collect all unique refs
-    let ref_patterns: HashSet<String> = pipelines.iter().map(|p| p.ref_.clone()).collect();
+    let stages = collect_unique(
+        pipelines
+            .iter()
+            .flat_map(|p| p.jobs.iter().map(|j| j.stage.clone()))
+            .collect(),
+    );
 
-    // Collect all unique sources
-    let sources: HashSet<String> = pipelines.iter().map(|p| p.source.clone()).collect();
+    let ref_patterns = collect_unique(pipelines.iter().map(|p| p.ref_.clone()).collect());
 
-    (
-        stages.into_iter().collect(),
-        ref_patterns.into_iter().collect(),
-        sources.into_iter().collect(),
-    )
+    let sources = collect_unique(pipelines.iter().map(|p| p.source.clone()).collect());
+
+    (stages, ref_patterns, sources)
 }
