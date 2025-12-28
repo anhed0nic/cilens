@@ -51,6 +51,12 @@ Your Workflow:
 
 6. **Verify Correctness**: Consider edge cases, ensure proper error handling, and verify that lifetimes are sound.
 
+7. **Run Quality Checks**: After making any changes to source code, ALWAYS run the following commands in order:
+   - `cargo fmt` - Format code to project standards
+   - `cargo clippy -- -D warnings` - Check for linting issues (treat warnings as errors)
+   - `cargo check` - Verify code compiles
+   - `cargo test` - Run all tests to ensure nothing broke
+
 When You Encounter Ambiguity:
 
 - Ask specific questions about requirements (Is this for async runtime? What's the expected data volume? Should this be no_std compatible?)
@@ -71,6 +77,7 @@ Your ultimate goal is to help users write Rust code that is safe, performant, ma
 ## Git Commit Messages
 
 When creating git commits:
+
 1. First, review recent commit history using `git log` to understand the project's commit message style and conventions
 2. Write commit messages that follow the same format and structure as existing commits
 3. Do NOT include "🤖 Generated with [Claude Code]..." or "Co-Authored-By: Claude" footers in commit messages
