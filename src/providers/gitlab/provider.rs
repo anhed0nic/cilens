@@ -7,6 +7,7 @@ use crate::insights::CIInsights;
 use crate::providers::gitlab::client::pipelines::{fetch_pipeline_jobs, fetch_pipelines};
 use crate::providers::gitlab::client::GitLabClient;
 
+use super::cache::JobCache;
 use super::progress_bar::PhaseProgress;
 use super::types::{GitLabJob, GitLabPipeline};
 
@@ -18,6 +19,7 @@ use super::types::{GitLabJob, GitLabPipeline};
 pub struct GitLabProvider {
     pub client: GitLabClient,
     pub project_path: String,
+    cache: JobCache,
 }
 
 impl GitLabProvider {
@@ -28,16 +30,24 @@ impl GitLabProvider {
     /// * `base_url` - GitLab instance base URL (e.g., <https://gitlab.com>)
     /// * `project_path` - Project path (e.g., "group/project")
     /// * `token` - Optional authentication token
+    /// * `use_cache` - Whether to enable job caching for completed pipelines
     ///
     /// # Errors
     ///
-    /// Returns an error if the GraphQL endpoint URL cannot be constructed.
-    pub fn new(base_url: &str, project_path: String, token: Option<Token>) -> Result<Self> {
+    /// Returns an error if the GraphQL endpoint URL or cache directory cannot be created.
+    pub fn new(
+        base_url: &str,
+        project_path: String,
+        token: Option<Token>,
+        use_cache: bool,
+    ) -> Result<Self> {
         let client = GitLabClient::new(base_url, token)?;
+        let cache = JobCache::new(&project_path, use_cache)?;
 
         Ok(Self {
             client,
             project_path,
+            cache,
         })
     }
 
@@ -97,13 +107,20 @@ impl GitLabProvider {
         #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
         let duration = duration as usize;
 
-        // Fetch all jobs for this pipeline
-        let job_nodes = self
-            .client
-            .fetch_pipeline_jobs(&self.project_path, &node.id)
-            .await?;
+        // Try to get jobs from cache first
+        let jobs = if let Some(cached_jobs) = self.cache.get(&node.id) {
+            cached_jobs
+        } else {
+            // Cache miss - fetch from API
+            let job_nodes = self
+                .client
+                .fetch_pipeline_jobs(&self.project_path, &node.id)
+                .await?;
 
-        let jobs = Self::transform_job_nodes(job_nodes);
+            Self::transform_job_nodes(job_nodes)
+        };
+
+        let pipeline_status = format!("{:?}", node.status).to_lowercase();
 
         // Extract stage order from pipeline metadata
         let stages = node
@@ -123,7 +140,7 @@ impl GitLabProvider {
             id: node.id,
             ref_: node.ref_.unwrap_or_default(),
             source: node.source.unwrap_or_default(),
-            status: format!("{:?}", node.status).to_lowercase(),
+            status: pipeline_status,
             duration,
             stages,
             jobs,
@@ -210,6 +227,11 @@ impl GitLabProvider {
         let pipelines = self
             .fetch_pipelines(limit, ref_, updated_after, updated_before)
             .await?;
+
+        // Derive cache from fetched pipelines and save to disk
+        if let Err(e) = self.cache.save_pipelines(&pipelines) {
+            warn!("Failed to save cache: {e}");
+        }
 
         if pipelines.is_empty() {
             warn!("No pipelines found for project: {}", self.project_path);

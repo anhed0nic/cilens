@@ -5,7 +5,7 @@ use log::info;
 use std::path::PathBuf;
 
 use crate::auth::Token;
-use crate::providers::GitLabProvider;
+use crate::providers::{GitLabProvider, JobCache};
 
 #[derive(Parser)]
 #[command(name = "cilens")]
@@ -41,6 +41,8 @@ struct GitLabConfig<'a> {
     since: Option<DateTime<Utc>>,
     until: Option<DateTime<Utc>>,
     min_type_percentage: u8,
+    no_cache: bool,
+    clear_cache: bool,
 }
 
 #[derive(Subcommand)]
@@ -86,11 +88,34 @@ enum Commands {
             value_parser = value_parser!(u8).range(0..=100),
         )]
         min_type_percentage: u8,
+
+        #[arg(long, help = "Disable job caching (fetch all data fresh)")]
+        no_cache: bool,
+
+        #[arg(long, help = "Clear the job cache before running")]
+        clear_cache: bool,
     },
 }
 
 impl Cli {
     async fn execute_gitlab(&self, config: GitLabConfig<'_>) -> Result<()> {
+        // Handle cache-only operations
+        if config.clear_cache {
+            JobCache::clear_project_cache(config.project_path)?;
+            info!("Cache cleared successfully");
+            return Ok(());
+        }
+
+        let token = config.token.map(|t| Token::from(t.as_str()));
+
+        let provider = GitLabProvider::new(
+            config.base_url,
+            config.project_path.to_owned(),
+            token,
+            !config.no_cache,
+        )?;
+
+        // Normal insights collection
         info!(
             "Collecting GitLab insights for project: {}",
             config.project_path
@@ -106,10 +131,6 @@ impl Cli {
                     .map_or_else(|| "now".to_string(), |d| d.date_naive().to_string())
             );
         }
-
-        let token = config.token.map(|t| Token::from(t.as_str()));
-
-        let provider = GitLabProvider::new(config.base_url, config.project_path.to_owned(), token)?;
 
         let insights = provider
             .collect_insights(
@@ -148,6 +169,8 @@ impl Cli {
                 since,
                 until,
                 min_type_percentage,
+                no_cache,
+                clear_cache,
             } => {
                 // Convert NaiveDate to DateTime<Utc> (start of day UTC)
                 let since_datetime =
@@ -166,6 +189,8 @@ impl Cli {
                     since: since_datetime,
                     until: until_datetime,
                     min_type_percentage: *min_type_percentage,
+                    no_cache: *no_cache,
+                    clear_cache: *clear_cache,
                 };
 
                 self.execute_gitlab(config).await

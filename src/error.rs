@@ -40,6 +40,9 @@ pub enum CILensError {
 
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
+
+    #[error("Cache error: {0}")]
+    Cache(String),
 }
 
 /// Result type alias using `CILensError` as the error type.

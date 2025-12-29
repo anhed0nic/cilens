@@ -93,6 +93,31 @@ CILens is designed to handle large-scale pipeline fetches reliably:
 
 This makes it suitable for fetching thousands of pipelines even from busy GitLab instances.
 
+### ⚡ Caching
+
+CILens automatically caches job data for completed pipelines to dramatically speed up subsequent runs on the same project:
+
+- **90%+ Speedup**: Second runs are typically 10x faster since job data is cached locally
+- **Smart Caching**: Only caches completed pipelines (SUCCESS/FAILED status) since their data is immutable
+- **Per-Project Cache Files**: Each project gets its own cache file (e.g., `group-project.json`) loaded into memory at startup for fast lookups
+- **Platform-Aware**: Uses platform-specific cache locations:
+  - Linux: `~/.cache/cilens/gitlab/`
+  - macOS: `~/Library/Caches/cilens/gitlab/`
+- **Transparent**: Automatically checks cache before making API calls - no configuration needed
+- **Validated**: Cache entries are validated against pipeline ID and status to prevent stale data
+
+#### Cache Management
+
+```bash
+# Clear cache before running
+cilens gitlab your/project --clear-cache
+
+# Disable cache for a single run
+cilens gitlab your/project --no-cache
+```
+
+**When to clear cache**: Clear cache when you need fresh data after pipeline definitions change significantly, or periodically to reclaim disk space.
+
 ## 📄 Output Format
 
 The tool outputs detailed insights grouped by pipeline type:

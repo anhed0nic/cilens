@@ -1,3 +1,4 @@
+mod cache;
 mod client;
 mod job_metrics;
 mod job_reliability;
@@ -8,4 +9,5 @@ mod progress_bar;
 mod provider;
 mod types;
 
+pub use cache::JobCache;
 pub use provider::GitLabProvider;

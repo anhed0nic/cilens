@@ -23,7 +23,7 @@ pub struct GitLabPipeline {
 /// A job within a GitLab CI/CD pipeline.
 ///
 /// Represents a single job execution with its dependencies and execution details.
-#[derive(Debug)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GitLabJob {
     /// GraphQL Global ID (e.g., <gid://gitlab/Ci::Job/456>)
     pub id: String,
