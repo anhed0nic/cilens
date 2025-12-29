@@ -1,4 +1,4 @@
-use indicatif::{ProgressBar, ProgressStyle};
+use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 
 /// Creates and manages progress indication for the three-phase insight collection process
 pub struct PhaseProgress {
@@ -9,6 +9,7 @@ impl PhaseProgress {
     /// Create a new phase progress tracker and start Phase 1
     pub fn start_phase_1(limit: usize) -> Self {
         let pb = ProgressBar::new_spinner();
+        pb.set_draw_target(ProgressDrawTarget::stderr());
         pb.set_style(
             ProgressStyle::default_spinner()
                 .template("{spinner:.green} {msg}")
@@ -26,6 +27,7 @@ impl PhaseProgress {
             .finish_with_message(format!("✓ Phase 1/3: Fetched {pipeline_count} pipelines"));
 
         let pb = ProgressBar::new_spinner();
+        pb.set_draw_target(ProgressDrawTarget::stderr());
         pb.set_style(
             ProgressStyle::default_spinner()
                 .template("{spinner:.green} {msg}")
@@ -43,6 +45,7 @@ impl PhaseProgress {
             .finish_with_message("✓ Phase 2/3: Fetched jobs for all pipelines");
 
         let pb = ProgressBar::new_spinner();
+        pb.set_draw_target(ProgressDrawTarget::stderr());
         pb.set_style(
             ProgressStyle::default_spinner()
                 .template("{spinner:.green} {msg}")
