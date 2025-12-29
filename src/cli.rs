@@ -38,6 +38,7 @@ struct GitLabConfig<'a> {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Collect CI/CD insights from GitLab
     Gitlab {
         #[arg(help = "GitLab project path (e.g., 'group/project')")]
         project_path: String,
