@@ -27,13 +27,13 @@ curl --proto '=https' --tlsv1.2 -LsSf https://github.com/dsalaza4/cilens/release
 Install using Nix flakes:
 
 ```bash
-nix profile install github:dsalaza4/cilens
+nix profile install github:dsalaza4/cilens/v0.4.0
 ```
 
 Or run without installing:
 
 ```bash
-nix run github:dsalaza4/cilens -- --help
+nix run github:dsalaza4/cilens/v0.4.0 -- --help
 ```
 
 ## 🚀 Quick Start
