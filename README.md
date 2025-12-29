@@ -57,8 +57,8 @@ cilens gitlab your/project
 # Fetch fewer pipelines for faster analysis
 cilens gitlab your/project --limit 100
 
-# Save to file
-cilens gitlab your/project --output insights.json --pretty
+# Save to file with pretty-printed JSON
+cilens gitlab your/project --pretty > insights.json
 
 # Filter by date range (optional)
 cilens gitlab your/project --since 2025-01-01 --until 2025-01-31

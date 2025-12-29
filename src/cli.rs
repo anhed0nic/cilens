@@ -2,7 +2,6 @@ use anyhow::Result;
 use chrono::{DateTime, NaiveDate, Utc};
 use clap::{value_parser, Parser, Subcommand};
 use log::info;
-use std::path::PathBuf;
 
 use crate::auth::Token;
 use crate::providers::{GitLabProvider, JobCache};
@@ -13,14 +12,6 @@ use crate::providers::{GitLabProvider, JobCache};
 pub struct Cli {
     #[command(subcommand)]
     command: Commands,
-
-    #[arg(
-        short,
-        long,
-        global = true,
-        help = "Path to output file (prints to stdout if not specified)"
-    )]
-    output: Option<PathBuf>,
 
     #[arg(
         short,
@@ -148,12 +139,7 @@ impl Cli {
             serde_json::to_string(&insights)?
         };
 
-        if let Some(output_path) = &self.output {
-            std::fs::write(output_path, json_output)?;
-            info!("Insights written to: {}", output_path.display());
-        } else {
-            println!("{json_output}");
-        }
+        println!("{json_output}");
 
         Ok(())
     }
