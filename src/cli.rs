@@ -18,7 +18,16 @@ pub struct Cli {
         long,
         global = true,
         default_value_t = false,
-        help = "Pretty-print JSON output"
+        help = "Output JSON instead of human-readable summary"
+    )]
+    json: bool,
+
+    #[arg(
+        short,
+        long,
+        global = true,
+        default_value_t = false,
+        help = "Pretty-print JSON output (only works with --json)"
     )]
     pretty: bool,
 }
@@ -134,13 +143,18 @@ impl Cli {
             )
             .await?;
 
-        let json_output = if self.pretty {
-            serde_json::to_string_pretty(&insights)?
+        if self.json {
+            // JSON output mode
+            let json_output = if self.pretty {
+                serde_json::to_string_pretty(&insights)?
+            } else {
+                serde_json::to_string(&insights)?
+            };
+            println!("{json_output}");
         } else {
-            serde_json::to_string(&insights)?
-        };
-
-        println!("{json_output}");
+            // Summary output mode (default)
+            crate::output::print_summary(&insights);
+        }
 
         Ok(())
     }

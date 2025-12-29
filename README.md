@@ -44,23 +44,25 @@ nix run github:dsalaza4/cilens/v0.5.0 -- --help
 
 export GITLAB_TOKEN="glpat-your-token"
 
-# Analyze a project (fetches up to 500 most recent pipelines)
-cilens gitlab group/project --pretty
+cilens gitlab group/project
 ```
 
 ## 💡 Usage
 
 ```bash
-# Basic usage (fetches up to 500 most recent pipelines)
+# Default: Human-readable summary (displays top issues, optimization targets)
 cilens gitlab your/project
+
+# Get JSON output for programmatic analysis
+cilens gitlab your/project --json > insights.json
+
+# Pretty-printed JSON
+cilens gitlab your/project --json --pretty > insights.json
 
 # Fetch fewer pipelines for faster analysis
 cilens gitlab your/project --limit 100
 
-# Save to file with pretty-printed JSON
-cilens gitlab your/project --pretty > insights.json
-
-# Filter by date range (optional)
+# Filter by date range
 cilens gitlab your/project --since 2025-01-01 --until 2025-01-31
 
 # Filter by branch/ref
@@ -118,9 +120,29 @@ cilens gitlab your/project --no-cache
 
 **When to clear cache**: Clear cache when you need fresh data after pipeline definitions change significantly, or periodically to reclaim disk space.
 
-## 📄 Output Format
+## 📄 Output Formats
 
-The tool outputs detailed insights grouped by pipeline type:
+CILens provides two output formats to suit different use cases:
+
+### 📊 Summary Output (Default)
+
+By default, CILens displays a human-readable summary with actionable insights.
+The summary includes:
+
+- **Top 10 Slowest Jobs**: Jobs with highest P95 time-to-feedback (best optimization targets), showing percentiles, failure rates, flakiness, and total executions
+- **Top 5 Failing Jobs**: Most unreliable jobs sorted by failure rate, with clickable URLs to investigate failures
+- **Top 5 Flaky Jobs**: Most intermittent jobs sorted by flakiness rate, with clickable URLs to investigate flaky runs
+- **Pipeline Types Table**: All pipeline types with their percentage, success rate, P95 duration, and example pipeline URLs
+
+All tables use color coding for quick visual analysis:
+
+- 🟢 **Green**: Good values (success >75%, failures <25%, flakiness <5%)
+- 🟡 **Yellow**: Warning values (success 50-75%, failures 25-50%, flakiness 5-10%)
+- 🔴 **Red**: Critical values (success <50%, failures >50%, flakiness >10%)
+
+### 📋 JSON Output
+
+For programmatic analysis or integration with other tools, use the `--json` flag:
 
 ```json
 {
@@ -238,7 +260,9 @@ The tool outputs detailed insights grouped by pipeline type:
 }
 ```
 
-### 📖 Key Metrics Explained
+### 📖 JSON Schema Explained
+
+When using `--json` output, the data structure includes:
 
 - **🧩 Pipeline Type Clustering**: Groups pipelines by job signature (exact match). Pipeline types below the configured threshold (default 1%) are filtered out to reduce noise.
 - **📊 Type Metrics** (under `metrics`):

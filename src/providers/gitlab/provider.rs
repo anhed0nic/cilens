@@ -4,11 +4,11 @@ use log::{info, warn};
 use crate::auth::Token;
 use crate::error::Result;
 use crate::insights::CIInsights;
+use crate::output::PhaseProgress;
 use crate::providers::gitlab::client::pipelines::{fetch_pipeline_jobs, fetch_pipelines};
 use crate::providers::gitlab::client::GitLabClient;
 
 use super::cache::JobCache;
-use super::progress_bar::PhaseProgress;
 use super::types::{GitLabJob, GitLabPipeline};
 
 /// GitLab CI/CD insights provider.
