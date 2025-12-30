@@ -1,202 +1,54 @@
-use crate::insights::CIInsights;
-use comfy_table::modifiers::UTF8_ROUND_CORNERS;
-use comfy_table::presets::UTF8_FULL;
-use comfy_table::{Cell, Color as TableColor, ContentArrangement, Table};
-use console::style;
-use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
+use std::fmt::Write;
 
-// Styling helpers
+use crate::insights::{CIInsights, JobMetrics};
+use comfy_table::{Cell, Color as TableColor};
 
-fn bright_yellow(text: impl std::fmt::Display) -> console::StyledObject<String> {
-    style(text.to_string()).bright().yellow()
-}
+use super::styling::{bright, bright_green, bright_red, bright_yellow, cyan, dim};
+use super::tables::{
+    color_coded_duration_cell, color_coded_failure_cell, color_coded_flakiness_cell,
+    color_coded_success_cell, create_table,
+};
 
-fn bright_green(text: impl std::fmt::Display) -> console::StyledObject<String> {
-    style(text.to_string()).bright().green()
-}
-
-fn bright_red(text: impl std::fmt::Display) -> console::StyledObject<String> {
-    style(text.to_string()).bright().red()
-}
-
-fn cyan(text: impl std::fmt::Display) -> console::StyledObject<String> {
-    style(text.to_string()).cyan()
-}
-
-fn dim(text: impl std::fmt::Display) -> console::StyledObject<String> {
-    style(text.to_string()).dim()
-}
-
-fn bright(text: impl std::fmt::Display) -> console::StyledObject<String> {
-    style(text.to_string()).bright()
-}
-
-fn magenta_bold(text: impl std::fmt::Display) -> console::StyledObject<String> {
-    style(text.to_string()).magenta().bold()
-}
-
-// Table helpers
-
-fn create_table() -> Table {
-    let mut table = Table::new();
-    table
-        .load_preset(UTF8_FULL)
-        .apply_modifier(UTF8_ROUND_CORNERS)
-        .set_content_arrangement(ContentArrangement::Dynamic);
-    table
-}
-
-fn create_spinner(message: String) -> ProgressBar {
-    let pb = ProgressBar::new_spinner();
-    pb.set_draw_target(ProgressDrawTarget::stderr());
-    pb.set_style(
-        ProgressStyle::default_spinner()
-            .template("  {msg} {spinner}")
-            .unwrap(),
-    );
-    pb.set_message(message);
-    pb.enable_steady_tick(std::time::Duration::from_millis(100));
-    pb
-}
-
-fn color_coded_success_cell(rate: f64) -> Cell {
-    let text = format!("{rate:.1}%");
-    if rate > 80.0 {
-        Cell::new(text).fg(TableColor::Green)
-    } else if rate >= 50.0 {
-        Cell::new(text).fg(TableColor::Yellow)
-    } else {
-        Cell::new(text).fg(TableColor::Red)
-    }
-}
-
-fn color_coded_duration_cell(seconds: f64) -> Cell {
-    let minutes = seconds / 60.0;
-    let text = format!("{minutes:.1}min");
-    if minutes <= 10.0 {
-        Cell::new(text).fg(TableColor::Green)
-    } else if minutes <= 15.0 {
-        Cell::new(text).fg(TableColor::Yellow)
-    } else {
-        Cell::new(text).fg(TableColor::Red)
-    }
-}
-
-fn color_coded_failure_cell(rate: f64) -> Cell {
-    let text = format!("{rate:.1}%");
-    if rate >= 50.0 {
-        Cell::new(text).fg(TableColor::Red)
-    } else if rate >= 25.0 {
-        Cell::new(text).fg(TableColor::Yellow)
-    } else {
-        Cell::new(text).fg(TableColor::Green)
-    }
-}
-
-fn color_coded_flakiness_cell(rate: f64) -> Cell {
-    let text = format!("{rate:.1}%");
-    if rate >= 10.0 {
-        Cell::new(text).fg(TableColor::Red)
-    } else if rate >= 5.0 {
-        Cell::new(text).fg(TableColor::Yellow)
-    } else {
-        Cell::new(text).fg(TableColor::Green)
-    }
-}
-
-// Banner
-
-pub fn print_banner() {
-    eprintln!(
-        r"
-{} {}
-  {}
-",
-        magenta_bold("🔍 CILens"),
-        dim(env!("CARGO_PKG_VERSION")),
-        dim("CI/CD Insights Tool")
-    );
-}
-
-// Progress tracking
-
-pub struct PhaseProgress {
-    pb: ProgressBar,
-}
-
-impl PhaseProgress {
-    pub fn start_phase_1() -> Self {
-        eprintln!("{}  {}", bright("⚙️"), bright("Phases").underlined());
-        let pb = create_spinner(bright_yellow("Phase 1/3: Fetching pipelines").to_string());
-        Self { pb }
-    }
-
-    pub fn finish_phase_1_start_phase_2(self) -> Self {
-        self.pb
-            .finish_with_message(bright_green("Phase 1/3: Fetched pipelines ✓").to_string());
-        let pb =
-            create_spinner(bright_yellow("Phase 2/3: Fetching jobs for pipelines").to_string());
-        Self { pb }
-    }
-
-    pub fn finish_phase_2_start_phase_3(self) -> Self {
-        self.pb.finish_with_message(
-            bright_green("Phase 2/3: Fetched jobs for all pipelines ✓").to_string(),
-        );
-        let pb = create_spinner(bright_yellow("Phase 3/3: Processing insights").to_string());
-        Self { pb }
-    }
-
-    pub fn finish_phase_3(self) {
-        self.pb.finish_with_message(
-            bright_green("Phase 3/3: Insights processed successfully ✓").to_string(),
-        );
-        eprintln!("\n");
-    }
-}
-
-// Summary rendering
-
+/// Summary rendering
 pub fn print_summary(insights: &CIInsights) {
     println!("{}", render_summary(insights));
 }
 
-#[allow(clippy::too_many_lines, clippy::format_push_string)]
-fn render_summary(insights: &CIInsights) -> String {
-    let mut output = String::new();
+// Helper functions
 
-    // Overview section
-    output.push_str(&format!(
-        "{} {}\n",
-        bright("📊"),
-        bright("Overview").underlined()
-    ));
-    output.push_str(&format!(
-        "  {} {}\n",
-        dim("Project:"),
-        cyan(&insights.project)
-    ));
-    output.push_str(&format!(
-        "  {} {}\n",
-        dim("Pipelines analyzed:"),
-        bright_yellow(insights.total_pipelines)
-    ));
-
-    // Calculate total jobs analyzed
-    let total_jobs: usize = insights
-        .pipeline_types
+fn create_cyan_header(labels: &[&str]) -> Vec<Cell> {
+    labels
         .iter()
-        .flat_map(|pt| &pt.metrics.jobs)
-        .map(|job| job.total_executions)
-        .sum();
+        .map(|label| Cell::new(*label).fg(TableColor::Cyan))
+        .collect()
+}
 
-    output.push_str(&format!(
-        "  {} {}\n",
-        dim("Jobs analyzed:"),
-        bright_yellow(total_jobs)
-    ));
+fn add_section_header(output: &mut String, emoji: &str, title: &str) {
+    let _ = writeln!(output, "{} {}", bright(emoji), bright(title).underlined());
+}
 
-    // Calculate overall success rate
+fn sort_jobs_by<'a, F>(jobs: &[&'a JobMetrics], compare: F) -> Vec<&'a JobMetrics>
+where
+    F: Fn(&JobMetrics, &JobMetrics) -> std::cmp::Ordering,
+{
+    let mut sorted = jobs.to_vec();
+    sorted.sort_by(|a, b| compare(a, b));
+    sorted
+}
+
+fn format_critical_path(job: &JobMetrics) -> String {
+    if job.predecessors.is_empty() {
+        "None".to_string()
+    } else {
+        job.predecessors
+            .iter()
+            .map(|p| p.name.as_str())
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+}
+
+fn calculate_overall_success_rate(insights: &CIInsights) -> (f64, usize) {
     let total_successful: usize = insights
         .pipeline_types
         .iter()
@@ -207,13 +59,33 @@ fn render_summary(insights: &CIInsights) -> String {
         .iter()
         .map(|pt| pt.metrics.failed_pipelines.count)
         .sum();
-    let total_pipeline_count = total_successful + total_failed;
+    let total = total_successful + total_failed;
+
     #[allow(clippy::cast_precision_loss)]
-    let overall_success_rate = if total_pipeline_count > 0 {
-        (total_successful as f64 / total_pipeline_count as f64) * 100.0
+    let rate = if total > 0 {
+        (total_successful as f64 / total as f64) * 100.0
     } else {
         0.0
     };
+
+    (rate, total)
+}
+
+#[allow(clippy::too_many_lines, clippy::format_push_string)]
+fn render_summary(insights: &CIInsights) -> String {
+    let mut output = String::new();
+
+    // Overview section
+    add_section_header(&mut output, "📊", "Overview");
+
+    let total_jobs: usize = insights
+        .pipeline_types
+        .iter()
+        .flat_map(|pt| &pt.metrics.jobs)
+        .map(|job| job.total_executions)
+        .sum();
+
+    let (overall_success_rate, _) = calculate_overall_success_rate(insights);
 
     let success_rate_display = if overall_success_rate > 80.0 {
         bright_green(format!("{overall_success_rate:.1}%"))
@@ -224,22 +96,20 @@ fn render_summary(insights: &CIInsights) -> String {
     };
 
     output.push_str(&format!(
-        "  {} {}\n",
+        "  {} {}\n  {} {}\n  {} {}\n  {} {}\n  {} {}\n  {} {}\n\n",
+        dim("Project:"),
+        cyan(&insights.project),
+        dim("Pipelines analyzed:"),
+        bright_yellow(insights.total_pipelines),
+        dim("Jobs analyzed:"),
+        bright_yellow(total_jobs),
         dim("Overall success rate:"),
-        success_rate_display
-    ));
-
-    output.push_str(&format!(
-        "  {} {}\n",
+        success_rate_display,
         dim("Pipeline types:"),
-        bright_yellow(insights.total_pipeline_types)
-    ));
-    output.push_str(&format!(
-        "  {} {}\n",
+        bright_yellow(insights.total_pipeline_types),
         dim("Analysis date:"),
         dim(insights.collected_at.format("%Y-%m-%d %H:%M UTC"))
     ));
-    output.push('\n');
 
     if insights.pipeline_types.is_empty() {
         output.push_str(&format!("{}\n", bright_yellow("No pipeline data found.")));
@@ -247,24 +117,21 @@ fn render_summary(insights: &CIInsights) -> String {
     }
 
     // Pipeline Types
-    output.push_str(&format!(
-        "{} {}\n",
-        bright("📋"),
-        bright("Pipeline Types").underlined()
-    ));
+    add_section_header(&mut output, "📋", "Pipeline Types");
 
     let mut types_table = create_table();
-    types_table.set_header(vec![
-        Cell::new("Pipeline Type").fg(TableColor::Cyan),
-        Cell::new("Total").fg(TableColor::Cyan),
-        Cell::new("Success").fg(TableColor::Cyan),
-        Cell::new("P95 Duration").fg(TableColor::Cyan),
-        Cell::new("Slowest Feedback").fg(TableColor::Cyan),
-        Cell::new("Example").fg(TableColor::Cyan),
-    ]);
+    types_table.set_header(create_cyan_header(&[
+        "Pipeline Type",
+        "Total",
+        "Success",
+        "P95 Duration",
+        "Slowest Feedback",
+        "Example",
+    ]));
 
     for pt in insights.pipeline_types.iter().take(10) {
         let success_cell = color_coded_success_cell(pt.metrics.success_rate);
+        let duration_cell = color_coded_duration_cell(pt.metrics.duration_p95);
 
         // Find the slowest job (highest time_to_feedback_p95) in this pipeline type
         let slowest_job = pt.metrics.jobs.iter().max_by(|a, b| {
@@ -273,21 +140,21 @@ fn render_summary(insights: &CIInsights) -> String {
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
 
-        let feedback_cell = if let Some(job) = slowest_job {
-            let minutes = job.time_to_feedback_p95 / 60.0;
-            let text = format!("{}\n{minutes:.1}min", job.name);
-            if minutes <= 10.0 {
-                Cell::new(text).fg(TableColor::Green)
-            } else if minutes <= 15.0 {
-                Cell::new(text).fg(TableColor::Yellow)
-            } else {
-                Cell::new(text).fg(TableColor::Red)
-            }
-        } else {
-            Cell::new("N/A")
-        };
-
-        let duration_cell = color_coded_duration_cell(pt.metrics.duration_p95);
+        let feedback_cell = slowest_job.map_or_else(
+            || Cell::new("N/A"),
+            |job| {
+                let minutes = job.time_to_feedback_p95 / 60.0;
+                let text = format!("{}\n{minutes:.1}min", job.name);
+                let color = if minutes <= 10.0 {
+                    TableColor::Green
+                } else if minutes <= 15.0 {
+                    TableColor::Yellow
+                } else {
+                    TableColor::Red
+                };
+                Cell::new(text).fg(color)
+            },
+        );
 
         // Get example pipeline URL (prefer successful, fallback to failed)
         let example_url = pt
@@ -309,18 +176,14 @@ fn render_summary(insights: &CIInsights) -> String {
     }
 
     if insights.pipeline_types.len() > 10 {
-        types_table.add_row(vec![
-            Cell::new(format!(
-                "... and {} more",
-                insights.pipeline_types.len() - 10
-            ))
-            .fg(TableColor::DarkGrey),
-            Cell::new(""),
-            Cell::new(""),
-            Cell::new(""),
-            Cell::new(""),
-            Cell::new(""),
-        ]);
+        let empty_cells = vec![Cell::new(""); 5];
+        let mut row = vec![Cell::new(format!(
+            "... and {} more",
+            insights.pipeline_types.len() - 10
+        ))
+        .fg(TableColor::DarkGrey)];
+        row.extend(empty_cells);
+        types_table.add_row(row);
     }
 
     output.push_str(&format!("{types_table}\n\n"));
@@ -343,153 +206,107 @@ fn render_summary(insights: &CIInsights) -> String {
         }
     }
 
-    let all_jobs: Vec<&crate::insights::JobMetrics> = jobs_by_name.values().copied().collect();
+    let all_jobs: Vec<&JobMetrics> = jobs_by_name.values().copied().collect();
 
     // Top 10 Slowest Jobs
-    output.push_str(&format!(
-        "{} {}\n",
-        bright("🐌"),
-        bright("Top 10 Slowest Jobs").underlined()
-    ));
+    add_section_header(&mut output, "🐌", "Top 10 Slowest Jobs");
 
-    let mut sorted_by_time = all_jobs.clone();
-    sorted_by_time.sort_by(|a, b| {
+    let sorted_by_time = sort_jobs_by(&all_jobs, |a, b| {
         b.time_to_feedback_p95
             .partial_cmp(&a.time_to_feedback_p95)
             .unwrap_or(std::cmp::Ordering::Equal)
     });
 
     let mut slowest_table = create_table();
-    slowest_table.set_header(vec![
-        Cell::new("#").fg(TableColor::Cyan),
-        Cell::new("Job Name").fg(TableColor::Cyan),
-        Cell::new("P95 Feedback").fg(TableColor::Cyan),
-        Cell::new("Fail").fg(TableColor::Cyan),
-        Cell::new("Flaky").fg(TableColor::Cyan),
-        Cell::new("Critical Path").fg(TableColor::Cyan),
-    ]);
+    slowest_table.set_header(create_cyan_header(&[
+        "#",
+        "Job Name",
+        "P95 Feedback",
+        "Fail",
+        "Flaky",
+        "Critical Path",
+    ]));
 
     for (idx, job) in sorted_by_time.iter().take(10).enumerate() {
-        let time_cell = color_coded_duration_cell(job.time_to_feedback_p95);
-        let fail_cell = color_coded_failure_cell(job.failure_rate);
-        let flaky_cell = color_coded_flakiness_cell(job.flakiness_rate);
-
-        // Show critical path (predecessors) - one per line
-        let critical_path = if job.predecessors.is_empty() {
-            "None".to_string()
-        } else {
-            job.predecessors
-                .iter()
-                .map(|p| p.name.as_str())
-                .collect::<Vec<_>>()
-                .join("\n")
-        };
-
         slowest_table.add_row(vec![
             Cell::new(idx + 1),
             Cell::new(&job.name),
-            time_cell,
-            fail_cell,
-            flaky_cell,
-            Cell::new(critical_path),
+            color_coded_duration_cell(job.time_to_feedback_p95),
+            color_coded_failure_cell(job.failure_rate),
+            color_coded_flakiness_cell(job.flakiness_rate),
+            Cell::new(format_critical_path(job)),
         ]);
     }
 
     output.push_str(&format!("{slowest_table}\n\n"));
 
     // Top 10 Failing Jobs
-    output.push_str(&format!(
-        "{} {}\n",
-        bright("❌"),
-        bright("Top 10 Failing Jobs").underlined()
-    ));
+    add_section_header(&mut output, "❌", "Top 10 Failing Jobs");
 
-    let mut sorted_by_failure = all_jobs.clone();
-    sorted_by_failure.sort_by(|a, b| {
+    let sorted_by_failure = sort_jobs_by(&all_jobs, |a, b| {
         b.failure_rate
             .partial_cmp(&a.failure_rate)
             .unwrap_or(std::cmp::Ordering::Equal)
     });
 
     let mut failing_table = create_table();
-    failing_table.set_header(vec![
-        Cell::new("#").fg(TableColor::Cyan),
-        Cell::new("Job Name").fg(TableColor::Cyan),
-        Cell::new("Fail").fg(TableColor::Cyan),
-        Cell::new("P95 Feedback").fg(TableColor::Cyan),
-    ]);
+    failing_table.set_header(create_cyan_header(&[
+        "#",
+        "Job Name",
+        "Fail",
+        "P95 Feedback",
+    ]));
 
     for (idx, job) in sorted_by_failure.iter().take(10).enumerate() {
-        let fail_cell = color_coded_failure_cell(job.failure_rate);
-        let time_cell = color_coded_duration_cell(job.time_to_feedback_p95);
-
         failing_table.add_row(vec![
             Cell::new(idx + 1),
             Cell::new(&job.name),
-            fail_cell,
-            time_cell,
+            color_coded_failure_cell(job.failure_rate),
+            color_coded_duration_cell(job.time_to_feedback_p95),
         ]);
     }
 
     output.push_str(&format!("{failing_table}\n\n"));
 
     // Top 10 Flaky Jobs
-    output.push_str(&format!(
-        "{} {}\n",
-        bright("🔄"),
-        bright("Top 10 Flaky Jobs").underlined()
-    ));
+    add_section_header(&mut output, "🔄", "Top 10 Flaky Jobs");
 
-    let mut sorted_by_flakiness = all_jobs.clone();
-    sorted_by_flakiness.sort_by(|a, b| {
+    let sorted_by_flakiness = sort_jobs_by(&all_jobs, |a, b| {
         b.flakiness_rate
             .partial_cmp(&a.flakiness_rate)
             .unwrap_or(std::cmp::Ordering::Equal)
     });
 
     let mut flaky_table = create_table();
-    flaky_table.set_header(vec![
-        Cell::new("#").fg(TableColor::Cyan),
-        Cell::new("Job Name").fg(TableColor::Cyan),
-        Cell::new("Flaky").fg(TableColor::Cyan),
-        Cell::new("P95 Feedback").fg(TableColor::Cyan),
-    ]);
+    flaky_table.set_header(create_cyan_header(&[
+        "#",
+        "Job Name",
+        "Flaky",
+        "P95 Feedback",
+    ]));
 
     for (idx, job) in sorted_by_flakiness.iter().take(10).enumerate() {
-        let flaky_cell = color_coded_flakiness_cell(job.flakiness_rate);
-        let time_cell = color_coded_duration_cell(job.time_to_feedback_p95);
-
         flaky_table.add_row(vec![
             Cell::new(idx + 1),
             Cell::new(&job.name),
-            flaky_cell,
-            time_cell,
+            color_coded_flakiness_cell(job.flakiness_rate),
+            color_coded_duration_cell(job.time_to_feedback_p95),
         ]);
     }
 
     output.push_str(&format!("{flaky_table}\n\n"));
 
     // Next Steps
+    add_section_header(&mut output, "💡", "Next Steps");
     output.push_str(&format!(
-        "{} {}\n",
-        bright("💡"),
-        bright("Next Steps").underlined()
-    ));
-    output.push_str(&format!(
-        "  {} Use {} flag to get detailed metrics and job dependencies\n",
+        "  {} Use {} flag to get detailed metrics and job dependencies\n\
+         \x20 {} Prioritize slowest jobs - they block developer feedback\n\
+         \x20 {} Fix failing jobs - they create noise and reduce trust\n\
+         \x20 {} Investigate flaky jobs - they waste CI resources and time\n",
         cyan("•"),
-        bright_yellow("--json")
-    ));
-    output.push_str(&format!(
-        "  {} Prioritize slowest jobs - they block developer feedback\n",
-        cyan("•")
-    ));
-    output.push_str(&format!(
-        "  {} Fix failing jobs - they create noise and reduce trust\n",
-        cyan("•")
-    ));
-    output.push_str(&format!(
-        "  {} Investigate flaky jobs - they waste CI resources and time\n",
+        bright_yellow("--json"),
+        cyan("•"),
+        cyan("•"),
         cyan("•")
     ));
 
