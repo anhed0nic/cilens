@@ -129,16 +129,23 @@ CILens provides two output formats to suit different use cases:
 By default, CILens displays a human-readable summary with actionable insights.
 The summary includes:
 
-- **Top 10 Slowest Jobs**: Jobs with highest P95 time-to-feedback (best optimization targets), showing percentiles, failure rates, flakiness, and total executions
-- **Top 10 Failing Jobs**: Most unreliable jobs sorted by failure rate, with clickable URLs to investigate failures
-- **Top 10 Flaky Jobs**: Most intermittent jobs sorted by flakiness rate, with clickable URLs to investigate flaky runs
-- **Pipeline Types Table**: All pipeline types with their percentage, success rate, P95 duration, and example pipeline URLs
+**Overview Section:**
+- Pipelines analyzed
+- Jobs analyzed (total job executions)
+- Overall success rate (color-coded: green >80%, yellow 50-80%, red <50%)
+- Pipeline types count
+
+**Analysis Tables:**
+- **Pipeline Types**: Overview of all pipeline types with percentage distribution, success rate, P95 duration, slowest job (name + feedback time), and example pipeline URLs for investigation
+- **Top 10 Slowest Jobs**: Jobs with highest P95 time-to-feedback (best optimization targets), showing failure rates, flakiness, and critical path dependencies
+- **Top 10 Failing Jobs**: Most unreliable jobs sorted by failure rate, showing P95 time-to-feedback
+- **Top 10 Flaky Jobs**: Most intermittent jobs sorted by flakiness rate, showing P95 time-to-feedback
 
 All tables use color coding for quick visual analysis:
 
-- 🟢 **Green**: Good values (success >75%, failures <25%, flakiness <5%)
-- 🟡 **Yellow**: Warning values (success 50-75%, failures 25-50%, flakiness 5-10%)
-- 🔴 **Red**: Critical values (success <50%, failures >50%, flakiness >10%)
+- 🟢 **Green**: Good values (success >80%, failures <25%, flakiness <5%, durations ≤10min)
+- 🟡 **Yellow**: Warning values (success 50-80%, failures 25-50%, flakiness 5-10%, durations 10-15min)
+- 🔴 **Red**: Critical values (success <50%, failures ≥50%, flakiness ≥10%, durations >15min)
 
 ### 📋 JSON Output
 
@@ -153,7 +160,7 @@ For programmatic analysis or integration with other tools, use the `--json` flag
   "total_pipeline_types": 4,
   "pipeline_types": [
     {
-      "label": "Test Pipeline",
+      "label": "Development",
       "stages": ["test"],
       "ref_patterns": ["main"],
       "sources": ["push"],

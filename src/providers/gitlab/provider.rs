@@ -222,7 +222,7 @@ impl GitLabProvider {
         );
 
         // Phase 1: Fetching pipelines
-        let progress = PhaseProgress::start_phase_1(limit);
+        let progress = PhaseProgress::start_phase_1();
 
         let pipelines = self
             .fetch_pipelines(limit, ref_, updated_after, updated_before)
@@ -238,7 +238,7 @@ impl GitLabProvider {
         }
 
         // Phase 2: Fetching jobs
-        let progress = progress.finish_phase_1_start_phase_2(pipelines.len());
+        let progress = progress.finish_phase_1_start_phase_2();
 
         // Extract base URL from graphql_url (e.g., https://gitlab.com/api/graphql -> https://gitlab.com)
         let base_url = self.client.graphql_url.origin().ascii_serialization();

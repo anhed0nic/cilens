@@ -16,7 +16,7 @@ fn extract_job_signature(pipeline: &GitLabPipeline) -> Vec<String> {
 /// Groups pipelines by their job signatures and filters by minimum percentage threshold.
 ///
 /// Pipelines with identical sets of job names are grouped into the same type. Each type
-/// receives a human-readable label (e.g., "Production Pipeline", "Development Pipeline")
+/// receives a human-readable label (e.g., "Production", "Development")
 /// based on keywords found in job names, and comprehensive metrics are calculated.
 ///
 /// # Arguments
@@ -112,11 +112,11 @@ fn generate_label(job_names: &[String]) -> String {
     };
 
     if has_keyword(&["prod"]) {
-        "Production Pipeline".to_string()
+        "Production".to_string()
     } else if has_keyword(&["staging", "dev", "test", "qa"]) {
-        "Development Pipeline".to_string()
+        "Development".to_string()
     } else {
-        "Unknown Pipeline".to_string()
+        "Unknown".to_string()
     }
 }
 
@@ -292,8 +292,8 @@ mod tests {
             // Act: Generate label
             let label = generate_label(&job_names);
 
-            // Assert: Should identify as Production Pipeline
-            assert_eq!(label, "Production Pipeline");
+            // Assert: Should identify as Production
+            assert_eq!(label, "Production");
         }
 
         #[test]
@@ -304,8 +304,8 @@ mod tests {
             // Act: Generate label
             let label = generate_label(&job_names);
 
-            // Assert: Should identify as Production Pipeline
-            assert_eq!(label, "Production Pipeline");
+            // Assert: Should identify as Production
+            assert_eq!(label, "Production");
         }
 
         #[test]
@@ -316,8 +316,8 @@ mod tests {
             // Act: Generate label
             let label = generate_label(&job_names);
 
-            // Assert: Should identify as Development Pipeline
-            assert_eq!(label, "Development Pipeline");
+            // Assert: Should identify as Development
+            assert_eq!(label, "Development");
         }
 
         #[test]
@@ -328,8 +328,8 @@ mod tests {
             // Act: Generate label
             let label = generate_label(&job_names);
 
-            // Assert: Should identify as Development Pipeline
-            assert_eq!(label, "Development Pipeline");
+            // Assert: Should identify as Development
+            assert_eq!(label, "Development");
         }
 
         #[test]
@@ -340,8 +340,8 @@ mod tests {
             // Act: Generate label
             let label = generate_label(&job_names);
 
-            // Assert: Should identify as Development Pipeline
-            assert_eq!(label, "Development Pipeline");
+            // Assert: Should identify as Development
+            assert_eq!(label, "Development");
         }
 
         #[test]
@@ -352,8 +352,8 @@ mod tests {
             // Act: Generate label
             let label = generate_label(&job_names);
 
-            // Assert: Should identify as Development Pipeline
-            assert_eq!(label, "Development Pipeline");
+            // Assert: Should identify as Development
+            assert_eq!(label, "Development");
         }
 
         #[test]
@@ -365,7 +365,7 @@ mod tests {
             let label = generate_label(&job_names);
 
             // Assert: Should identify as Production Pipeline despite case
-            assert_eq!(label, "Production Pipeline");
+            assert_eq!(label, "Production");
         }
 
         #[test]
@@ -377,7 +377,7 @@ mod tests {
             let label = generate_label(&job_names);
 
             // Assert: Should identify as Development Pipeline despite case
-            assert_eq!(label, "Development Pipeline");
+            assert_eq!(label, "Development");
         }
 
         #[test]
@@ -392,8 +392,8 @@ mod tests {
             // Act: Generate label
             let label = generate_label(&job_names);
 
-            // Assert: Should identify as Unknown Pipeline
-            assert_eq!(label, "Unknown Pipeline");
+            // Assert: Should identify as Unknown
+            assert_eq!(label, "Unknown");
         }
 
         #[test]
@@ -405,7 +405,7 @@ mod tests {
             let label = generate_label(&job_names);
 
             // Assert: Production should take precedence
-            assert_eq!(label, "Production Pipeline");
+            assert_eq!(label, "Production");
         }
 
         #[test]
@@ -417,7 +417,7 @@ mod tests {
             let label = generate_label(&job_names);
 
             // Assert: Should return Unknown Pipeline
-            assert_eq!(label, "Unknown Pipeline");
+            assert_eq!(label, "Unknown");
         }
 
         #[test]
@@ -432,7 +432,7 @@ mod tests {
             let label = generate_label(&job_names);
 
             // Assert: Should find "production" keyword
-            assert_eq!(label, "Production Pipeline");
+            assert_eq!(label, "Production");
         }
     }
 
