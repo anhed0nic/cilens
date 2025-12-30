@@ -81,4 +81,5 @@ When creating git commits:
 1. Run `git diff` to review all changes that will be committed
 2. Review recent commit history using `git log` to understand the project's commit message style and conventions
 3. Write commit messages that follow the same format and structure as existing commits, accurately describing the changes from the diff
-4. Do NOT include "🤖 Generated with [Claude Code]..." or "Co-Authored-By: Claude" footers in commit messages
+4. After creating the commit, validate it with `commitlint --last` to ensure it follows the project's commit conventions
+5. Do NOT include "🤖 Generated with [Claude Code]..." or "Co-Authored-By: Claude" footers in commit messages
