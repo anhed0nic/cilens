@@ -33,7 +33,7 @@ fn extract_job_signature(pipeline: &GitLabPipeline) -> Vec<String> {
 ///
 /// # Examples
 ///
-/// ```no_run
+/// ```ignore
 /// // Group pipelines, excluding types that are less than 5% of total
 /// let pipeline_types = group_pipeline_types(
 ///     &pipelines,

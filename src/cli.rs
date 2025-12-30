@@ -6,6 +6,11 @@ use log::info;
 use crate::auth::Token;
 use crate::providers::{GitLabProvider, JobCache};
 
+/// Command-line interface for `CILens`.
+///
+/// Provides access to CI/CD insights from various providers (currently GitLab).
+/// Supports both JSON output for programmatic use and human-readable summaries
+/// for quick analysis.
 #[derive(Parser)]
 #[command(name = "cilens")]
 #[command(author, version, about = "CI/CD Insights Tool", long_about = None)]
@@ -32,6 +37,9 @@ pub struct Cli {
     pretty: bool,
 }
 
+/// Configuration for GitLab insights collection.
+///
+/// Encapsulates all parameters needed to fetch and analyze GitLab pipeline data.
 struct GitLabConfig<'a> {
     token: Option<&'a String>,
     base_url: &'a str,
@@ -99,6 +107,20 @@ enum Commands {
 }
 
 impl Cli {
+    /// Executes GitLab insights collection with the provided configuration.
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - GitLab configuration including authentication, project path, and filters
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` on success, or an error if fetching/processing fails.
+    ///
+    /// # Behavior
+    ///
+    /// - If `clear_cache` is true, clears the cache and returns without fetching insights
+    /// - Otherwise, fetches pipelines from GitLab and displays results in the requested format
     async fn execute_gitlab(&self, config: GitLabConfig<'_>) -> Result<()> {
         // Handle cache-only operations
         if config.clear_cache {
@@ -159,6 +181,13 @@ impl Cli {
         Ok(())
     }
 
+    /// Executes the CLI command.
+    ///
+    /// Parses the subcommand and routes to the appropriate handler.
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` on successful execution, or an error if the command fails.
     pub async fn execute(&self) -> Result<()> {
         match &self.command {
             Commands::Gitlab {

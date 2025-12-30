@@ -9,7 +9,20 @@ use super::tables::{
     color_coded_success_cell, create_table,
 };
 
-/// Summary rendering
+/// Prints a human-readable summary of CI/CD insights to stdout.
+///
+/// Displays color-coded tables showing:
+/// - Overview: Project name, pipeline/job counts, overall success rate
+/// - Pipeline Types: Distribution, success rates, durations, examples
+/// - Top 10 Slowest Jobs: Jobs with highest P95 time-to-feedback
+/// - Top 10 Failing Jobs: Most unreliable jobs by failure rate
+/// - Top 10 Flaky Jobs: Most intermittent jobs by flakiness rate
+/// - Next Steps: Actionable recommendations
+///
+/// Color coding:
+/// - Green: Good values (success >80%, failures <25%, flakiness <5%, durations ≤10min)
+/// - Yellow: Warning (success 50-80%, failures 25-50%, flakiness 5-10%, durations 10-15min)
+/// - Red: Critical (success <50%, failures ≥50%, flakiness ≥10%, durations >15min)
 pub fn print_summary(insights: &CIInsights) {
     println!("{}", render_summary(insights));
 }

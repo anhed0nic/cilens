@@ -15,6 +15,7 @@ impl Token {
     /// Returns the token as a string slice.
     ///
     /// Use this method when passing the token to API clients.
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }

@@ -7,7 +7,9 @@ pub use progress::PhaseProgress;
 pub use styling::{dim, magenta_bold};
 pub use summary::print_summary;
 
-// Banner
+/// Prints the `CILens` banner to stderr.
+///
+/// Displays the tool name, version, and description at the start of execution.
 pub fn print_banner() {
     eprintln!(
         r"
