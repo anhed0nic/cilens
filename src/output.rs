@@ -234,11 +234,11 @@ fn render_summary(insights: &CIInsights) -> String {
 
     output.push_str(&format!("{slowest_table}\n\n"));
 
-    // Top 5 Failing Jobs
+    // Top 10 Failing Jobs
     output.push_str(&format!(
         "{} {}\n",
         bright("❌"),
-        bright("Top 5 Failing Jobs").underlined()
+        bright("Top 10 Failing Jobs").underlined()
     ));
 
     let mut sorted_by_failure = all_jobs.clone();
@@ -260,7 +260,7 @@ fn render_summary(insights: &CIInsights) -> String {
             Cell::new("P95 Time").fg(TableColor::Cyan),
         ]);
 
-    for (idx, job) in sorted_by_failure.iter().take(5).enumerate() {
+    for (idx, job) in sorted_by_failure.iter().take(10).enumerate() {
         let fail_cell = if job.failure_rate >= 50.0 {
             Cell::new(format!("{:.1}", job.failure_rate)).fg(TableColor::Red)
         } else if job.failure_rate >= 25.0 {
@@ -279,11 +279,11 @@ fn render_summary(insights: &CIInsights) -> String {
 
     output.push_str(&format!("{failing_table}\n\n"));
 
-    // Top 5 Flaky Jobs
+    // Top 10 Flaky Jobs
     output.push_str(&format!(
         "{} {}\n",
         bright("🔄"),
-        bright("Top 5 Flaky Jobs").underlined()
+        bright("Top 10 Flaky Jobs").underlined()
     ));
 
     let mut sorted_by_flakiness = all_jobs.clone();
@@ -305,7 +305,7 @@ fn render_summary(insights: &CIInsights) -> String {
             Cell::new("P95 Time").fg(TableColor::Cyan),
         ]);
 
-    for (idx, job) in sorted_by_flakiness.iter().take(5).enumerate() {
+    for (idx, job) in sorted_by_flakiness.iter().take(10).enumerate() {
         let flaky_cell = if job.flakiness_rate >= 10.0 {
             Cell::new(format!("{:.1}", job.flakiness_rate)).fg(TableColor::Red)
         } else if job.flakiness_rate >= 5.0 {
@@ -531,8 +531,8 @@ mod tests {
 
         // Check job tables are present
         assert!(output.contains("Top 10 Slowest Jobs"));
-        assert!(output.contains("Top 5 Failing Jobs"));
-        assert!(output.contains("Top 5 Flaky Jobs"));
+        assert!(output.contains("Top 10 Failing Jobs"));
+        assert!(output.contains("Top 10 Flaky Jobs"));
 
         // Check job names appear
         assert!(output.contains("slow-job"));
@@ -744,10 +744,10 @@ mod tests {
 
         let output = render_summary(&insights);
 
-        // Failing jobs section should show top 5
-        assert!(output.contains("Top 5 Failing Jobs"));
+        // Failing jobs section should show top 10
+        assert!(output.contains("Top 10 Failing Jobs"));
 
-        // Flaky jobs section should show top 5
-        assert!(output.contains("Top 5 Flaky Jobs"));
+        // Flaky jobs section should show top 10
+        assert!(output.contains("Top 10 Flaky Jobs"));
     }
 }

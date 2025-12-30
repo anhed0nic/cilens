@@ -130,8 +130,8 @@ By default, CILens displays a human-readable summary with actionable insights.
 The summary includes:
 
 - **Top 10 Slowest Jobs**: Jobs with highest P95 time-to-feedback (best optimization targets), showing percentiles, failure rates, flakiness, and total executions
-- **Top 5 Failing Jobs**: Most unreliable jobs sorted by failure rate, with clickable URLs to investigate failures
-- **Top 5 Flaky Jobs**: Most intermittent jobs sorted by flakiness rate, with clickable URLs to investigate flaky runs
+- **Top 10 Failing Jobs**: Most unreliable jobs sorted by failure rate, with clickable URLs to investigate failures
+- **Top 10 Flaky Jobs**: Most intermittent jobs sorted by flakiness rate, with clickable URLs to investigate flaky runs
 - **Pipeline Types Table**: All pipeline types with their percentage, success rate, P95 duration, and example pipeline URLs
 
 All tables use color coding for quick visual analysis:
