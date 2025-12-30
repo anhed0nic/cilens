@@ -1,9 +1,5 @@
 use chrono::{DateTime, Utc};
 use graphql_client::GraphQLQuery;
-use std::sync::{
-    atomic::{AtomicUsize, Ordering},
-    Arc,
-};
 
 use super::core::{GitLabClient, PAGE_SIZE};
 use crate::error::{CILensError, Result};
@@ -30,7 +26,7 @@ pub struct FetchPipelines;
 pub struct FetchPipelineJobs;
 
 impl GitLabClient {
-    #[allow(clippy::too_many_lines, clippy::too_many_arguments)]
+    #[allow(clippy::too_many_lines)]
     async fn fetch_pipelines_with_status(
         &self,
         project_path: &str,
@@ -39,19 +35,11 @@ impl GitLabClient {
         status: Option<fetch_pipelines::PipelineStatusEnum>,
         updated_after: Option<DateTime<Utc>>,
         updated_before: Option<DateTime<Utc>>,
-        shared_counter: Option<Arc<AtomicUsize>>,
     ) -> Result<Vec<fetch_pipelines::FetchPipelinesProjectPipelinesNodes>> {
         let mut all_pipelines = Vec::new();
         let mut cursor: Option<String> = None;
 
         loop {
-            // Check shared counter if provided (for coordinated fetching)
-            if let Some(ref counter) = shared_counter {
-                if counter.load(Ordering::Relaxed) >= limit {
-                    break;
-                }
-            }
-
             let remaining = limit.saturating_sub(all_pipelines.len());
             if remaining == 0 {
                 break;
@@ -83,13 +71,7 @@ impl GitLabClient {
                 .pipelines
                 .ok_or_else(|| CILensError::NoPipelineData(project_path.to_string()))?;
 
-            let fetched_count = pipelines.nodes.iter().flatten().flatten().count();
             all_pipelines.extend(pipelines.nodes.into_iter().flatten().flatten());
-
-            // Update shared counter if provided
-            if let Some(ref counter) = shared_counter {
-                counter.fetch_add(fetched_count, Ordering::Relaxed);
-            }
 
             // Stop if we have enough pipelines or no more pages
             if all_pipelines.len() >= limit || !pipelines.page_info.has_next_page {
@@ -112,36 +94,31 @@ impl GitLabClient {
         updated_after: Option<DateTime<Utc>>,
         updated_before: Option<DateTime<Utc>>,
     ) -> Result<Vec<fetch_pipelines::FetchPipelinesProjectPipelinesNodes>> {
-        // Fetch SUCCESS and FAILED pipelines in parallel with shared counter
-        // Both tasks will stop when combined total reaches limit
-        let shared_counter = Arc::new(AtomicUsize::new(0));
+        // Fetch SUCCESS and FAILED pipelines in parallel with fixed 50/50 split
+        // This ensures deterministic results across runs
+        let half_limit = limit / 2;
 
         let (success_result, failed_result) = tokio::join!(
             self.fetch_pipelines_with_status(
                 project_path,
-                limit,
+                half_limit,
                 ref_,
                 Some(fetch_pipelines::PipelineStatusEnum::SUCCESS),
                 updated_after,
                 updated_before,
-                Some(Arc::clone(&shared_counter)),
             ),
             self.fetch_pipelines_with_status(
                 project_path,
-                limit,
+                half_limit,
                 ref_,
                 Some(fetch_pipelines::PipelineStatusEnum::FAILED),
                 updated_after,
                 updated_before,
-                Some(Arc::clone(&shared_counter)),
             ),
         );
 
         let mut all_pipelines = success_result?;
         all_pipelines.extend(failed_result?);
-
-        // Truncate to exact limit (both tasks may have fetched slightly over due to page granularity)
-        all_pipelines.truncate(limit);
 
         Ok(all_pipelines)
     }
