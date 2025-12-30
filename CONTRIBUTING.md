@@ -33,6 +33,9 @@ Thanks for your interest in contributing! This document provides guidelines to h
 
    # Format code
    cargo fmt
+
+   # Configure commit message template
+   git config commit.template .gitmessage
    ```
 
 4. **Get a GitLab token for testing:**
@@ -73,12 +76,14 @@ Thanks for your interest in contributing! This document provides guidelines to h
    - Follow [Conventional Commits](https://www.conventionalcommits.org/)
    - Format: `type(scope): description`
    - Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `build`, `ci`, `perf`
+   - Scopes: `gitlab`, `output`, `cli`, `cache`, `auth`, `insights`, `providers`, `client`, `dev`
+   - The commit template (`.gitmessage`) will guide you with the correct format
    - Examples:
 
    ```text
    feat(gitlab): add support for merge request pipelines
    fix(cache): handle corrupted cache files gracefully
-   docs: update installation instructions
+   docs(core): update installation instructions
    refactor(output): simplify table rendering logic
    ```
 

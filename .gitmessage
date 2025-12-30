@@ -1,0 +1,16 @@
+# type(scope): subject
+#
+# Types: feat, fix, docs, style, refactor, test, chore, build, ci, perf, revert
+# Scopes: gitlab, output, cli, cache, auth, insights, providers, client, dev
+#
+# Rules:
+# - Scope is mandatory
+# - Subject: lowercase, no period at end, max 100 chars total for header
+# - Blank line before body (optional)
+# - Blank line before footer (optional)
+#
+# Examples:
+# feat(gitlab): add support for pipeline filters
+# fix(cache): resolve cache invalidation bug
+# docs(core): update installation instructions
+# refactor(output): simplify summary formatting logic
