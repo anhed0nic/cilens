@@ -130,12 +130,14 @@ By default, CILens displays a human-readable summary with actionable insights.
 The summary includes:
 
 **Overview Section:**
+
 - Pipelines analyzed
 - Jobs analyzed (total job executions)
 - Overall success rate (color-coded: green >80%, yellow 50-80%, red <50%)
 - Pipeline types count
 
 **Analysis Tables:**
+
 - **Pipeline Types**: Overview of all pipeline types with percentage distribution, success rate, P95 duration, slowest job (name + feedback time), and example pipeline URLs for investigation
 - **Top 10 Slowest Jobs**: Jobs with highest P95 time-to-feedback (best optimization targets), showing failure rates, flakiness, and critical path dependencies
 - **Top 10 Failing Jobs**: Most unreliable jobs sorted by failure rate, showing P95 time-to-feedback
