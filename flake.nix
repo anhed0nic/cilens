@@ -32,6 +32,8 @@
               pkgs.rustfmt
               pkgs.clippy
 
+              pkgs.commitlint
+
               self'.packages.default
             ];
           };
