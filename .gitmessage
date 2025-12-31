@@ -1,7 +1,7 @@
 # type(scope): subject
 #
-# Types: feat, fix, docs, style, refactor, test, chore, build, ci, perf, revert
-# Scopes: gitlab, output, cli, cache, auth, insights, providers, client, dev
+# Types: feat, fix, docs, style, refactor, test, chore, build, perf, revert
+# Scopes: core, ci, gitlab
 #
 # Rules:
 # - Scope is mandatory
@@ -11,6 +11,6 @@
 #
 # Examples:
 # feat(gitlab): add support for pipeline filters
-# fix(cache): resolve cache invalidation bug
+# fix(core): resolve cache invalidation bug
 # docs(core): update installation instructions
-# refactor(output): simplify summary formatting logic
+# chore(ci): update github actions workflow

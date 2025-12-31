@@ -75,16 +75,16 @@ Thanks for your interest in contributing! This document provides guidelines to h
 5. **Commit your changes:**
    - Follow [Conventional Commits](https://www.conventionalcommits.org/)
    - Format: `type(scope): description`
-   - Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `build`, `ci`, `perf`
-   - Scopes: `gitlab`, `output`, `cli`, `cache`, `auth`, `insights`, `providers`, `client`, `dev`
+   - Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `build`, `perf`, `revert`
+   - Scopes: `core`, `ci`, `gitlab`
    - The commit template (`.gitmessage`) will guide you with the correct format
    - Examples:
 
    ```text
    feat(gitlab): add support for merge request pipelines
-   fix(cache): handle corrupted cache files gracefully
+   fix(core): handle corrupted cache files gracefully
    docs(core): update installation instructions
-   refactor(output): simplify table rendering logic
+   chore(ci): update github actions workflow
    ```
 
 6. **Push to your fork and create a PR:**
