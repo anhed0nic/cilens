@@ -2,6 +2,8 @@
 
 A Rust CLI tool for collecting and analyzing CI/CD insights from GitLab.
 
+![CILens Output](static/output.png)
+
 ## ✨ Features
 
 - **🧩 Smart Pipeline Clustering** - Groups pipelines by job signature and filters out rare pipeline types (configurable threshold, default 1%)
