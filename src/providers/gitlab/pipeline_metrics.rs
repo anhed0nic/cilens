@@ -66,6 +66,7 @@ pub fn calculate_type_metrics(
     percentage: f64,
     base_url: &str,
     project_path: &str,
+    cost_per_minute: Option<f64>,
 ) -> TypeMetrics {
     let total_pipelines = pipelines.len();
 
@@ -86,7 +87,18 @@ pub fn calculate_type_metrics(
         pipelines,
         base_url,
         project_path,
+        cost_per_minute,
     );
+
+    // Calculate cost metrics if cost_per_minute is provided
+    let (cost_per_pipeline, total_cost) = if let Some(cost_rate) = cost_per_minute {
+        let cost_per_sec = cost_rate / 60.0;
+        let pipeline_cost = duration_p50 * cost_per_sec;
+        let total_pipeline_cost = pipeline_cost * total_pipelines as f64;
+        (Some(pipeline_cost), Some(total_pipeline_cost))
+    } else {
+        (None, None)
+    };
 
     TypeMetrics {
         percentage,
@@ -101,6 +113,8 @@ pub fn calculate_type_metrics(
         time_to_feedback_p95: time_to_feedback_percentiles.1,
         time_to_feedback_p99: time_to_feedback_percentiles.2,
         jobs,
+        cost_per_pipeline,
+        total_cost,
     }
 }
 
@@ -130,6 +144,7 @@ fn aggregate_job_metrics(
     all_pipelines: &[&GitLabPipeline],
     base_url: &str,
     project_path: &str,
+    cost_per_minute: Option<f64>,
 ) -> (Vec<JobMetrics>, (f64, f64, f64)) {
     if successful_pipelines.is_empty() {
         return (vec![], (0.0, 0.0, 0.0));
@@ -181,6 +196,7 @@ fn aggregate_job_metrics(
 
     let mut jobs: Vec<JobMetrics> = job_data
         .into_iter()
+<<<<<<< HEAD
         .map(|(name, data)| {
             build_job_metrics(
                 pipeline_type_id,
@@ -190,6 +206,9 @@ fn aggregate_job_metrics(
                 &reliability_data,
             )
         })
+=======
+        .map(|(name, data)| build_job_metrics(&name, &data, &all_percentiles, &reliability_data, cost_per_minute))
+>>>>>>> 4577af2 (feat: Add comprehensive CI/CD analysis features)
         .collect();
 
     jobs.sort_by(|a, b| cmp_f64(b.time_to_feedback_p95, a.time_to_feedback_p95));
@@ -210,6 +229,7 @@ fn build_job_metrics(
     data: &JobData,
     all_percentiles: &HashMap<String, (f64, f64, f64)>,
     reliability_data: &HashMap<String, JobReliabilityMetrics>,
+    cost_per_minute: Option<f64>,
 ) -> JobMetrics {
     let (duration_p50, duration_p95, duration_p99) = calculate_percentiles(&data.durations);
     let (time_to_feedback_p50, time_to_feedback_p95, time_to_feedback_p99) =
@@ -241,6 +261,16 @@ fn build_job_metrics(
             ),
         };
 
+    // Calculate cost metrics if cost_per_minute is provided
+    let (cost_per_execution, total_cost) = if let Some(cost_rate) = cost_per_minute {
+        let cost_per_sec = cost_rate / 60.0;
+        let execution_cost = duration_p50 * cost_per_sec;
+        let total_job_cost = execution_cost * total_executions as f64;
+        (Some(execution_cost), Some(total_job_cost))
+    } else {
+        (None, None)
+    };
+
     JobMetrics {
         name: name.to_string(),
         pipeline_type_id: pipeline_type_id.to_string(),
@@ -256,6 +286,8 @@ fn build_job_metrics(
         failed_executions,
         failure_rate,
         total_executions,
+        cost_per_execution,
+        total_cost,
     }
 }
 

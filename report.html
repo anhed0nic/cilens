@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CILens Report - myorg/myproject</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 40px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px; }
+        h2 { color: #34495e; margin-top: 30px; }
+        .summary { background: #ecf0f1; padding: 20px; border-radius: 5px; margin: 20px 0; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #3498db; color: white; }
+        tr:nth-child(even) { background: #f8f9fa; }
+        .good { color: #27ae60; }
+        .warning { color: #f39c12; }
+        .bad { color: #e74c3c; }
+        .metric { font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 CILens CI/CD Insights Report</h1>
+        <div class="summary">
+            <h2>Project Summary</h2>
+            <p><strong>Project:</strong> myorg/myproject</p>
+            <p><strong>Provider:</strong> GitLab</p>
+            <p><strong>Analysis Date:</strong> 2026-01-07 14:30 UTC</p>
+            <p><strong>Total Pipelines:</strong> 499</p>
+            <p><strong>Pipeline Types:</strong> 3</p>
+            <p><strong>Total CI/CD Cost:</strong> $229.57 (30-day period)</p>
+        </div>
+
+        <h2>Pipeline Types</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Type</th>
+                    <th>Percentage</th>
+                    <th>Total</th>
+                    <th>Success Rate</th>
+                    <th>P95 Duration</th>
+                    <th>Cost/Pipeline</th>
+                    <th>Total Cost</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Production Pipeline</td>
+                    <td>68.5%</td>
+                    <td>342</td>
+                    <td class="good">94.2%</td>
+                    <td>412.8s</td>
+                    <td>$0.49</td>
+                    <td>$167.58</td>
+                </tr>
+                <tr>
+                    <td>Development Pipeline</td>
+                    <td>24.3%</td>
+                    <td>121</td>
+                    <td class="warning">87.6%</td>
+                    <td>289.4s</td>
+                    <td>$0.31</td>
+                    <td>$37.51</td>
+                </tr>
+                <tr>
+                    <td>Release Pipeline</td>
+                    <td>7.2%</td>
+                    <td>36</td>
+                    <td class="good">98.1%</td>
+                    <td>567.8s</td>
+                    <td>$0.68</td>
+                    <td>$24.48</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>Job Performance</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Job Name</th>
+                    <th>Pipeline Type</th>
+                    <th>P95 Duration</th>
+                    <th>P95 Time to Feedback</th>
+                    <th>Failure Rate</th>
+                    <th>Flakiness Rate</th>
+                    <th>Cost/Execution</th>
+                    <th>Total Cost</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>security-scan</td>
+                    <td>Production Pipeline</td>
+                    <td>456.7s</td>
+                    <td>1204.1s</td>
+                    <td class="warning">2.3%</td>
+                    <td class="warning">2.9%</td>
+                    <td>$0.047</td>
+                    <td>$16.07</td>
+                </tr>
+                <tr>
+                    <td>deploy</td>
+                    <td>Production Pipeline</td>
+                    <td>145.6s</td>
+                    <td>748.4s</td>
+                    <td class="warning">3.1%</td>
+                    <td class="bad">4.5%</td>
+                    <td>$0.018</td>
+                    <td>$6.16</td>
+                </tr>
+                <tr>
+                    <td>build</td>
+                    <td>Production Pipeline</td>
+                    <td>289.4s</td>
+                    <td>602.8s</td>
+                    <td class="good">1.2%</td>
+                    <td class="good">1.8%</td>
+                    <td>$0.031</td>
+                    <td>$10.60</td>
+                </tr>
+                <tr>
+                    <td>test</td>
+                    <td>Production Pipeline</td>
+                    <td>234.5s</td>
+                    <td>313.4s</td>
+                    <td class="warning">2.8%</td>
+                    <td class="warning">3.2%</td>
+                    <td>$0.024</td>
+                    <td>$8.21</td>
+                </tr>
+                <tr>
+                    <td>lint</td>
+                    <td>Production Pipeline</td>
+                    <td>78.9s</td>
+                    <td>78.9s</td>
+                    <td class="good">1.5%</td>
+                    <td class="good">2.1%</td>
+                    <td>$0.009</td>
+                    <td>$3.08</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>Optimization Recommendations</h2>
+        <div class="summary">
+            <h3>High Impact Opportunities</h3>
+            <ul>
+                <li><strong>Security Scan Parallelization:</strong> Move security-scan job to run in parallel with other jobs. Potential time savings: 8.2 minutes per pipeline ($0.098 savings per pipeline).</li>
+                <li><strong>Deploy Job Reliability:</strong> Deploy job has 4.5% flakiness rate. Consider implementing retry logic or investigating root causes.</li>
+                <li><strong>Test Suite Optimization:</strong> Test job takes 3.9 minutes P95. Consider test parallelization or selective test execution.</li>
+            </ul>
+
+            <h3>Cost Optimization</h3>
+            <ul>
+                <li><strong>Development Pipeline Cost:</strong> 24.3% of pipelines are development builds costing $37.51 total. Consider reducing frequency or optimizing build times.</li>
+                <li><strong>Security Scan Efficiency:</strong> Security scanning costs $16.07 across all executions. Evaluate if full scans are needed for every commit.</li>
+            </ul>
+        </div>
+
+        <footer style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; text-align: center;">
+            <p>Report generated by CILens v0.7.0 on 2026-01-07 14:30 UTC</p>
+        </footer>
+    </div>
+</body>
+</html>

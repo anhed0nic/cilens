@@ -1,8 +1,10 @@
+mod exports;
 mod progress;
 mod styling;
 mod summary;
 mod tables;
 
+pub use exports::export_insights;
 pub use progress::PhaseProgress;
 pub use styling::{dim, magenta_bold};
 pub use summary::print_summary;

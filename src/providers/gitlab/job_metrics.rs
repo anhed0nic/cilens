@@ -74,6 +74,8 @@ pub fn calculate_job_metrics(pipeline: &GitLabPipeline) -> Vec<JobMetrics> {
                 failed_executions: JobCountWithLinks::default(),
                 failure_rate: 0.0,
                 total_executions: 0,
+                cost_per_execution: None,
+                total_cost: None,
             }
         })
         .collect();

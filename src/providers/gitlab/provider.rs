@@ -215,6 +215,7 @@ impl GitLabProvider {
         updated_after: Option<DateTime<Utc>>,
         updated_before: Option<DateTime<Utc>>,
         min_type_percentage: u8,
+        cost_per_minute: Option<f64>,
     ) -> Result<CIInsights> {
         info!(
             "Starting insights collection for project: {}",
@@ -248,6 +249,7 @@ impl GitLabProvider {
             min_type_percentage,
             &base_url,
             &self.project_path,
+            cost_per_minute,
         );
 
         // Phase 3: Processing data

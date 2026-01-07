@@ -1,5 +1,6 @@
 mod auth;
 mod cli;
+mod config;
 mod error;
 mod insights;
 mod output;

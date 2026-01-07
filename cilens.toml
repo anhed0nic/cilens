@@ -1,0 +1,36 @@
+# Example CILens Configuration File
+# This file demonstrates all available configuration options
+
+[gitlab]
+# GitLab personal access token (can also use GITLAB_TOKEN env var)
+token = "glpat-xxxxxxxxxxxxxxxxxxxx"
+# GitLab instance base URL
+base-url = "https://gitlab.com"
+# Maximum number of pipelines to fetch
+limit = 500
+# Default branch filter
+ref = "main"
+# Minimum percentage for pipeline type filtering
+min-type-percentage = 1
+# Cost per minute for CI/CD compute (in dollars)
+cost-per-minute = 0.12
+
+[output]
+# Default output format: summary, json, csv, html
+format = "summary"
+# Pretty-print JSON output
+pretty = true
+# Include cost analysis in output
+include-costs = true
+# Include optimization recommendations
+include-recommendations = true
+
+[analysis]
+# Enable historical trend analysis
+enable-history = false
+# Path to history database
+history-db = "./cilens-history.db"
+# Enable GitHub issue integration
+enable-issues = false
+# GitHub repository for issue integration (format: owner/repo)
+github-repo = "myorg/myproject"

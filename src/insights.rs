@@ -78,6 +78,10 @@ pub struct JobMetrics {
     pub failure_rate: f64,
     /// Total executions across all pipelines (includes retries and failures)
     pub total_executions: usize,
+    /// Estimated cost per execution (based on duration and cost rate)
+    pub cost_per_execution: Option<f64>,
+    /// Total estimated cost across all executions
+    pub total_cost: Option<f64>,
 }
 
 /// A group of pipelines with identical job signatures.
@@ -124,4 +128,8 @@ pub struct TypeMetrics {
     pub time_to_feedback_p99: f64,
     /// Per-job metrics, sorted by `time_to_feedback_p95` descending
     pub jobs: Vec<JobMetrics>,
+    /// Estimated cost per pipeline execution
+    pub cost_per_pipeline: Option<f64>,
+    /// Total estimated cost across all pipelines
+    pub total_cost: Option<f64>,
 }

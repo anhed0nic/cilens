@@ -1,6 +1,6 @@
 # 🔍 CILens - CI/CD Insights Tool
 
-A Rust CLI tool for collecting and analyzing CI/CD insights from GitLab.
+A Rust CLI tool for collecting and analyzing CI/CD insights from GitLab and GitHub Actions.
 
 ![CILens Output](static/output.png)
 
@@ -13,6 +13,10 @@ A Rust CLI tool for collecting and analyzing CI/CD insights from GitLab.
 - **⚠️ Flakiness Detection** - Identifies unreliable jobs that fail intermittently and need retries
 - **✅ Success Rate Metrics** - Per-pipeline-type success rates and failure analysis
 - **🎯 Optimization Insights** - Jobs sorted by P95 time-to-feedback to quickly identify highest-impact optimization targets
+- **💰 Cost Analysis** - Calculate CI/CD costs based on compute time and configurable rates
+- **📄 Multiple Output Formats** - Export to JSON, CSV, HTML, or human-readable summaries
+- **⚙️ Configuration Files** - Save and reuse analysis settings with TOML/YAML/JSON configs
+- **🔄 Multi-Provider Support** - Analyze GitLab CI/CD and GitHub Actions workflows
 
 ## 📦 Installation
 
@@ -49,6 +53,28 @@ export GITLAB_TOKEN="glpat-your-token"
 cilens gitlab group/project
 ```
 
+## ⚙️ Configuration
+
+CILens supports configuration files to save common settings. Create a `cilens.toml`, `cilens.json`, or `cilens.yaml` file in your project directory:
+
+```toml
+[gitlab]
+token = "glpat-your-token"
+base-url = "https://gitlab.example.com"
+limit = 200
+cost-per-minute = 0.15
+
+[output]
+format = "html"
+include-costs = true
+
+[analysis]
+enable-history = true
+history-db = "/path/to/history.db"
+```
+
+Then run with: `cilens --config cilens.toml gitlab group/project`
+
 ## 💡 Usage
 
 ```bash
@@ -60,6 +86,12 @@ cilens gitlab your/project --json > insights.json
 
 # Pretty-printed JSON
 cilens gitlab your/project --json --pretty > insights.json
+
+# Export to CSV for spreadsheet analysis
+cilens gitlab your/project --format csv > insights.csv
+
+# Generate HTML report
+cilens gitlab your/project --format html > report.html
 
 # Fetch fewer pipelines for faster analysis
 cilens gitlab your/project --limit 100
@@ -75,6 +107,13 @@ cilens gitlab your/project --base-url "https://gitlab.example.com"
 
 # Custom filtering threshold (only show pipeline types that are ≥5% of total)
 cilens gitlab your/project --min-type-percentage 5
+
+# Analyze GitHub Actions workflows
+export GITHUB_TOKEN="ghp_your-token"
+cilens github owner/repo
+
+# GitHub Enterprise Server
+cilens github owner/repo --base-url "https://github.example.com/api/v3"
 ```
 
 ### 📅 Date Filtering

@@ -47,6 +47,7 @@ pub fn group_pipeline_types(
     min_type_percentage: u8,
     base_url: &str,
     project_path: &str,
+    cost_per_minute: Option<f64>,
 ) -> Vec<PipelineType> {
     let total_pipelines = pipelines.len();
 
@@ -67,6 +68,7 @@ pub fn group_pipeline_types(
                 total_pipelines,
                 base_url,
                 project_path,
+                cost_per_minute,
             )
         })
         .filter(|pt| pt.metrics.percentage >= f64::from(min_type_percentage))
@@ -83,6 +85,7 @@ fn create_pipeline_type(
     total_pipelines: usize,
     base_url: &str,
     project_path: &str,
+    cost_per_minute: Option<f64>,
 ) -> PipelineType {
     let count = pipelines.len();
     #[allow(clippy::cast_precision_loss)]
@@ -99,6 +102,7 @@ fn create_pipeline_type(
         percentage,
         base_url,
         project_path,
+        cost_per_minute,
     );
 
     PipelineType {
