@@ -52,6 +52,7 @@ pub fn calculate_job_metrics(pipeline: &GitLabPipeline) -> Vec<JobMetrics> {
 
     let mut metrics: Vec<JobMetrics> = job_map
         .iter()
+        .filter(|(_, job)| job.status == "SUCCESS")
         .map(|(&name, job)| {
             // For a single pipeline, all percentiles are the same (only 1 value)
             let duration = job.duration;
@@ -179,7 +180,7 @@ mod tests {
             name: name.to_string(),
             stage: stage.to_string(),
             duration,
-            status: "success".to_string(),
+            status: "SUCCESS".to_string(),
             retried: false,
             needs,
         }
