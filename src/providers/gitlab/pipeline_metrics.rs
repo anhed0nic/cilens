@@ -61,6 +61,7 @@ fn calculate_percentiles(values: &[f64]) -> (f64, f64, f64) {
 /// time-to-feedback percentiles, and detailed per-job metrics with clickable URLs
 /// to failed pipelines and flaky job runs.
 pub fn calculate_type_metrics(
+    pipeline_type_id: &str,
     pipelines: &[&GitLabPipeline],
     percentage: f64,
     base_url: &str,
@@ -79,8 +80,13 @@ pub fn calculate_type_metrics(
     let durations: Vec<f64> = successful.iter().map(|p| p.duration as f64).collect();
     let (duration_p50, duration_p95, duration_p99) = calculate_percentiles(&durations);
 
-    let (jobs, time_to_feedback_percentiles) =
-        aggregate_job_metrics(&successful, pipelines, base_url, project_path);
+    let (jobs, time_to_feedback_percentiles) = aggregate_job_metrics(
+        pipeline_type_id,
+        &successful,
+        pipelines,
+        base_url,
+        project_path,
+    );
 
     TypeMetrics {
         percentage,
@@ -119,6 +125,7 @@ fn calculate_success_rate(successful: usize, total: usize) -> f64 {
 
 #[allow(clippy::cast_precision_loss)]
 fn aggregate_job_metrics(
+    pipeline_type_id: &str,
     successful_pipelines: &[&GitLabPipeline],
     all_pipelines: &[&GitLabPipeline],
     base_url: &str,
@@ -174,7 +181,15 @@ fn aggregate_job_metrics(
 
     let mut jobs: Vec<JobMetrics> = job_data
         .into_iter()
-        .map(|(name, data)| build_job_metrics(&name, &data, &all_percentiles, &reliability_data))
+        .map(|(name, data)| {
+            build_job_metrics(
+                pipeline_type_id,
+                &name,
+                &data,
+                &all_percentiles,
+                &reliability_data,
+            )
+        })
         .collect();
 
     jobs.sort_by(|a, b| cmp_f64(b.time_to_feedback_p95, a.time_to_feedback_p95));
@@ -190,6 +205,7 @@ struct JobData {
 }
 
 fn build_job_metrics(
+    pipeline_type_id: &str,
     name: &str,
     data: &JobData,
     all_percentiles: &HashMap<String, (f64, f64, f64)>,
@@ -227,6 +243,7 @@ fn build_job_metrics(
 
     JobMetrics {
         name: name.to_string(),
+        pipeline_type_id: pipeline_type_id.to_string(),
         duration_p50,
         duration_p95,
         duration_p99,

@@ -134,7 +134,8 @@ fn render_summary(insights: &CIInsights) -> String {
 
     let mut types_table = create_table();
     types_table.set_header(create_cyan_header(&[
-        "Pipeline Type",
+        "ID",
+        "Type",
         "Total",
         "Success",
         "P95 Duration",
@@ -179,6 +180,7 @@ fn render_summary(insights: &CIInsights) -> String {
             .map_or("N/A", |url| url.as_str());
 
         types_table.add_row(vec![
+            Cell::new(&pt.id),
             Cell::new(&pt.label),
             Cell::new(format!("{:.1}%", pt.metrics.percentage)),
             success_cell,
@@ -189,7 +191,7 @@ fn render_summary(insights: &CIInsights) -> String {
     }
 
     if insights.pipeline_types.len() > 10 {
-        let empty_cells = vec![Cell::new(""); 5];
+        let empty_cells = vec![Cell::new(""); 6];
         let mut row = vec![Cell::new(format!(
             "... and {} more",
             insights.pipeline_types.len() - 10
@@ -238,6 +240,7 @@ fn render_summary(insights: &CIInsights) -> String {
         "Fail",
         "Flaky",
         "Critical Path",
+        "Pipeline Type ID",
     ]));
 
     for (idx, job) in sorted_by_time.iter().take(10).enumerate() {
@@ -248,6 +251,7 @@ fn render_summary(insights: &CIInsights) -> String {
             color_coded_failure_cell(job.failure_rate),
             color_coded_flakiness_cell(job.flakiness_rate),
             Cell::new(format_critical_path(job)),
+            Cell::new(&job.pipeline_type_id),
         ]);
     }
 
@@ -268,6 +272,7 @@ fn render_summary(insights: &CIInsights) -> String {
         "Job Name",
         "Fail",
         "P95 Feedback",
+        "Pipeline Type ID",
     ]));
 
     for (idx, job) in sorted_by_failure.iter().take(10).enumerate() {
@@ -276,6 +281,7 @@ fn render_summary(insights: &CIInsights) -> String {
             Cell::new(&job.name),
             color_coded_failure_cell(job.failure_rate),
             color_coded_duration_cell(job.time_to_feedback_p95),
+            Cell::new(&job.pipeline_type_id),
         ]);
     }
 
@@ -296,6 +302,7 @@ fn render_summary(insights: &CIInsights) -> String {
         "Job Name",
         "Flaky",
         "P95 Feedback",
+        "Pipeline Type ID",
     ]));
 
     for (idx, job) in sorted_by_flakiness.iter().take(10).enumerate() {
@@ -304,6 +311,7 @@ fn render_summary(insights: &CIInsights) -> String {
             Cell::new(&job.name),
             color_coded_flakiness_cell(job.flakiness_rate),
             color_coded_duration_cell(job.time_to_feedback_p95),
+            Cell::new(&job.pipeline_type_id),
         ]);
     }
 
@@ -343,6 +351,7 @@ mod tests {
     ) -> JobMetrics {
         JobMetrics {
             name: name.to_string(),
+            pipeline_type_id: "test-type".to_string(),
             duration_p50: time_to_feedback_p95 * 0.3,
             duration_p95: time_to_feedback_p95 * 0.6,
             duration_p99: time_to_feedback_p95 * 0.8,
@@ -367,6 +376,7 @@ mod tests {
         example_url: &str,
     ) -> PipelineType {
         PipelineType {
+            id: "test-type".to_string(),
             label: label.to_string(),
             stages: vec!["test".to_string()],
             ref_patterns: vec!["main".to_string()],

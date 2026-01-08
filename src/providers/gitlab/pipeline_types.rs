@@ -58,8 +58,10 @@ pub fn group_pipeline_types(
 
     let mut pipeline_types: Vec<PipelineType> = clusters
         .into_iter()
-        .map(|(job_names, cluster_pipelines)| {
+        .enumerate()
+        .map(|(index, (job_names, cluster_pipelines))| {
             create_pipeline_type(
+                index,
                 &job_names,
                 &cluster_pipelines,
                 total_pipelines,
@@ -75,6 +77,7 @@ pub fn group_pipeline_types(
 }
 
 fn create_pipeline_type(
+    index: usize,
     job_names: &[String],
     pipelines: &[&GitLabPipeline],
     total_pipelines: usize,
@@ -85,9 +88,13 @@ fn create_pipeline_type(
     #[allow(clippy::cast_precision_loss)]
     let percentage = (count as f64 / total_pipelines.max(1) as f64) * 100.0;
 
+    // Generate deterministic ID based on job signature
+    let id = format!("type-{index}");
+
     let label = generate_label(job_names);
     let (stages, ref_patterns, sources) = extract_characteristics(pipelines);
     let metrics = super::pipeline_metrics::calculate_type_metrics(
+        &id,
         pipelines,
         percentage,
         base_url,
@@ -95,6 +102,7 @@ fn create_pipeline_type(
     );
 
     PipelineType {
+        id,
         label,
         stages,
         ref_patterns,

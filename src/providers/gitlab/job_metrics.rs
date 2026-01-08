@@ -61,6 +61,7 @@ pub fn calculate_job_metrics(pipeline: &GitLabPipeline) -> Vec<JobMetrics> {
 
             JobMetrics {
                 name: name.to_string(),
+                pipeline_type_id: String::new(), // Temporary, will be set by aggregate_job_metrics
                 duration_p50: duration,
                 duration_p95: duration,
                 duration_p99: duration,

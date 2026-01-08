@@ -52,6 +52,8 @@ pub struct JobCountWithLinks {
 pub struct JobMetrics {
     /// Job name
     pub name: String,
+    /// Pipeline type ID this job belongs to
+    pub pipeline_type_id: String,
     /// Median job execution duration (seconds)
     pub duration_p50: f64,
     /// 95th percentile job duration (seconds) - useful for SLA planning
@@ -81,6 +83,8 @@ pub struct JobMetrics {
 /// A group of pipelines with identical job signatures.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PipelineType {
+    /// Unique identifier for this pipeline type
+    pub id: String,
     /// Human-readable label (e.g., "Production Pipeline", "Development Pipeline")
     pub label: String,
     /// Unique CI stages found in this pipeline type
