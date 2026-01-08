@@ -165,6 +165,7 @@ For programmatic analysis or integration with other tools, use the `--json` flag
   "total_pipeline_types": 4,
   "pipeline_types": [
     {
+      "id": "type-0",
       "label": "Development",
       "stages": ["test"],
       "ref_patterns": ["main"],
@@ -190,6 +191,7 @@ For programmatic analysis or integration with other tools, use the `--json` flag
         "jobs": [
           {
             "name": "integration-tests",
+            "pipeline_type_id": "type-0",
             "duration_p50": 400.0,
             "duration_p95": 480.0,
             "duration_p99": 520.0,
@@ -220,6 +222,7 @@ For programmatic analysis or integration with other tools, use the `--json` flag
           },
           {
             "name": "build",
+            "pipeline_type_id": "type-0",
             "duration_p50": 175.0,
             "duration_p95": 200.0,
             "duration_p99": 210.0,
@@ -246,6 +249,7 @@ For programmatic analysis or integration with other tools, use the `--json` flag
           },
           {
             "name": "lint",
+            "pipeline_type_id": "type-0",
             "duration_p50": 42.0,
             "duration_p95": 58.0,
             "duration_p99": 62.0,
@@ -277,6 +281,7 @@ For programmatic analysis or integration with other tools, use the `--json` flag
 When using `--json` output, the data structure includes:
 
 - **🧩 Pipeline Type Clustering**: Groups pipelines by job signature (exact match). Pipeline types below the configured threshold (default 1%) are filtered out to reduce noise.
+  - **`id`**: Unique identifier for this pipeline type (e.g., "type-0", "type-1"), used to trace which pipeline type a job belongs to
 - **📊 Type Metrics** (under `metrics`):
   - **`percentage`**: Percentage of total pipelines that belong to this type
   - **`total_pipelines`**: Total number of pipelines in this type
@@ -290,6 +295,7 @@ When using `--json` output, the data structure includes:
   - **`time_to_feedback_p95`**: 95th percentile time to first feedback
   - **`time_to_feedback_p99`**: 99th percentile time to first feedback
 - **💼 Job Metrics** (under `metrics.jobs`, sorted by `time_to_feedback_p95` descending):
+  - **`pipeline_type_id`**: Pipeline type identifier this job belongs to (matches the `id` field in the parent pipeline type)
   - **`duration_p50`**: Median job execution time (typical duration)
   - **`duration_p95`**: 95th percentile job duration (for planning SLAs)
   - **`duration_p99`**: 99th percentile job duration (outlier detection)
