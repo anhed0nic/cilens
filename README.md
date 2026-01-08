@@ -107,6 +107,7 @@ CILens automatically caches job data for completed pipelines to dramatically spe
 - **Platform-Aware**: Uses platform-specific cache locations:
   - Linux: `~/.cache/cilens/gitlab/`
   - macOS: `~/Library/Caches/cilens/gitlab/`
+  - Windows: `%LOCALAPPDATA%\cilens\gitlab\`
 - **Transparent**: Automatically checks cache before making API calls - no configuration needed
 - **Validated**: Cache entries are validated against pipeline ID and status to prevent stale data
 
